@@ -1,33 +1,53 @@
-import { useEffect, useState } from "react";
-import { fetchAllArticles, formatRelativeTime, type Article } from "@/lib/feed";
+import { useMemo, useState } from "react";
+import { Search, X } from "lucide-react";
+import { type Article } from "@/lib/feed";
 import { getCurrentUser, signOut, type DevUser } from "@/lib/auth";
+import { type BookmarkedArticle } from "@/lib/bookmarks";
+import { filterArticles } from "@/lib/search";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
+import { useBookmarks } from "@/lib/useBookmarks";
+import { useFeed } from "@/lib/useFeed";
 import AuthScreen from "@/components/AuthScreen";
 import AppHeader from "@/components/AppHeader";
+import ArticleCard from "@/components/ArticleCard";
 
-type Status = "loading" | "ready" | "error";
+type Tab = "feed" | "saved";
 
 const Index = () => {
   const [user, setUser] = useState<DevUser | null>(() => getCurrentUser());
-  const [status, setStatus] = useState<Status>("loading");
-  const [articles, setArticles] = useState<Article[]>([]);
-  const [errorMsg, setErrorMsg] = useState<string>("");
+  const [tab, setTab] = useState<Tab>("feed");
+  const [searchInput, setSearchInput] = useState("");
+  const debouncedQuery = useDebouncedValue(searchInput, 300);
 
-  const load = async () => {
-    setStatus("loading");
-    setErrorMsg("");
-    try {
-      const { articles } = await fetchAllArticles();
-      setArticles(articles);
-      setStatus("ready");
-    } catch (err) {
-      setErrorMsg(err instanceof Error ? err.message : "Failed to load feed");
-      setStatus("error");
-    }
-  };
+  const {
+    data: feedData,
+    isPending,
+    isRefetching,
+    isError,
+    error,
+    refetch,
+  } = useFeed(!!user);
 
-  useEffect(() => {
-    if (user) load();
-  }, [user]);
+  const articles = feedData?.articles ?? [];
+  const isFeedLoading = isPending || isRefetching;
+  const isFeedReady = !isFeedLoading && !isError;
+
+  const { bookmarks, count, isBookmarked, toggleBookmark } = useBookmarks(
+    user?.username ?? "",
+  );
+
+  const filteredFeed = useMemo(
+    () => filterArticles(articles, debouncedQuery),
+    [articles, debouncedQuery],
+  );
+  const filteredSaved = useMemo(
+    () => filterArticles(bookmarks, debouncedQuery),
+    [bookmarks, debouncedQuery],
+  );
+
+  const isSearching = debouncedQuery.trim().length > 0;
+  const errorMsg =
+    error instanceof Error ? error.message : "Failed to load feed";
 
   if (!user) {
     return <AuthScreen onAuthed={() => setUser(getCurrentUser())} />;
@@ -38,6 +58,8 @@ const Index = () => {
     setUser(null);
   };
 
+  const showSearch = tab === "feed" ? isFeedReady && articles.length > 0 : count > 0;
+
   return (
     <div className="min-h-screen bg-background text-foreground">
       <AppHeader user={user} onSignOut={handleSignOut} />
@@ -45,81 +67,179 @@ const Index = () => {
       <div className="mx-auto max-w-2xl px-4 py-8 sm:py-12">
         <section className="mb-8">
           <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-            Today's feed
+            {tab === "feed" ? "Today's feed" : "Saved articles"}
           </h1>
           <p className="mt-1.5 text-sm text-muted-foreground">
-            A minimal daily feed from Dev.to, Medium, Reddit, Hacker News and more.
+            {tab === "feed"
+              ? "A minimal daily feed from Dev.to, Medium, Reddit, Hacker News and more."
+              : "Articles you've bookmarked on this device."}
           </p>
-          <div className="mt-4 flex items-center gap-3">
-            <button
-              onClick={load}
-              disabled={status === "loading"}
-              className="rounded-full border border-border bg-background px-4 py-1.5 text-xs font-medium transition hover:bg-muted disabled:opacity-50"
-            >
-              {status === "loading" ? "Refreshing…" : "Refresh"}
-            </button>
-            {status === "ready" && (
+
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            <div className="inline-flex rounded-full border border-border p-0.5">
+              <button
+                type="button"
+                onClick={() => setTab("feed")}
+                className={`rounded-full px-4 py-1.5 text-xs font-medium transition ${
+                  tab === "feed"
+                    ? "bg-foreground text-background"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                Feed
+              </button>
+              <button
+                type="button"
+                onClick={() => setTab("saved")}
+                className={`rounded-full px-4 py-1.5 text-xs font-medium transition ${
+                  tab === "saved"
+                    ? "bg-foreground text-background"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                Saved
+                {count > 0 && (
+                  <span
+                    className={`ml-1.5 inline-flex min-w-[1.25rem] items-center justify-center rounded-full px-1 text-[10px] font-semibold ${
+                      tab === "saved"
+                        ? "bg-background text-foreground"
+                        : "bg-muted text-foreground"
+                    }`}
+                  >
+                    {count}
+                  </span>
+                )}
+              </button>
+            </div>
+
+            {tab === "feed" && (
+              <>
+                <button
+                  onClick={() => refetch()}
+                  disabled={isFeedLoading}
+                  className="rounded-full border border-border bg-background px-4 py-1.5 text-xs font-medium transition hover:bg-muted disabled:opacity-50"
+                >
+                  {isFeedLoading ? "Refreshing…" : "Refresh"}
+                </button>
+                {isFeedReady && !isSearching && (
+                  <span className="text-[11px] uppercase tracking-wider text-muted-foreground">
+                    {articles.length} article{articles.length === 1 ? "" : "s"}
+                  </span>
+                )}
+                {isFeedReady && isSearching && (
+                  <span className="text-[11px] uppercase tracking-wider text-muted-foreground">
+                    {filteredFeed.length} result{filteredFeed.length === 1 ? "" : "s"}
+                  </span>
+                )}
+              </>
+            )}
+
+            {tab === "saved" && count > 0 && !isSearching && (
               <span className="text-[11px] uppercase tracking-wider text-muted-foreground">
-                {articles.length} article{articles.length === 1 ? "" : "s"}
+                {count} saved
+              </span>
+            )}
+            {tab === "saved" && count > 0 && isSearching && (
+              <span className="text-[11px] uppercase tracking-wider text-muted-foreground">
+                {filteredSaved.length} result{filteredSaved.length === 1 ? "" : "s"}
               </span>
             )}
           </div>
+
+          {showSearch && (
+            <div className="relative mt-4">
+              <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <input
+                type="search"
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                placeholder="Search title, source, author…"
+                aria-label="Search articles"
+                className="w-full rounded-lg border border-input bg-background py-2.5 pl-10 pr-10 text-sm outline-none transition focus:border-foreground focus:ring-1 focus:ring-foreground"
+              />
+              {searchInput && (
+                <button
+                  type="button"
+                  onClick={() => setSearchInput("")}
+                  aria-label="Clear search"
+                  className="absolute right-2 top-1/2 inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground transition hover:bg-muted hover:text-foreground"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
+          )}
         </section>
 
         <main className="pb-16">
-          {status === "loading" && <LoadingList />}
+          {tab === "feed" && (
+            <>
+              {isFeedLoading && <LoadingList />}
 
-          {status === "error" && (
-            <div className="rounded-xl border border-border bg-muted/40 p-4 text-sm">
-              <p className="font-medium">Something went wrong.</p>
-              <p className="mt-1 text-muted-foreground">{errorMsg}</p>
-              <button
-                onClick={load}
-                className="mt-3 rounded-full border border-border bg-background px-4 py-1.5 text-xs font-medium hover:bg-muted"
-              >
-                Try again
-              </button>
-            </div>
-          )}
-
-          {status === "ready" && articles.length === 0 && (
-            <div className="rounded-xl border border-dashed border-border p-10 text-center">
-              <p className="text-base font-medium">No articles found.</p>
-            </div>
-          )}
-
-          {status === "ready" && articles.length > 0 && (
-            <ul className="divide-y divide-border">
-              {articles.map((a) => (
-                <li key={a.url} className="py-5">
-                  <a
-                    href={a.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="group block"
+              {isError && (
+                <div className="rounded-xl border border-border bg-muted/40 p-4 text-sm">
+                  <p className="font-medium">Something went wrong.</p>
+                  <p className="mt-1 text-muted-foreground">{errorMsg}</p>
+                  <button
+                    onClick={() => refetch()}
+                    className="mt-3 rounded-full border border-border bg-background px-4 py-1.5 text-xs font-medium hover:bg-muted"
                   >
-                    <h2 className="text-lg font-semibold leading-snug tracking-tight group-hover:underline underline-offset-4">
-                      {a.title}
-                    </h2>
-                  </a>
-                  <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] uppercase tracking-wider text-muted-foreground">
-                    <span className="rounded-full border border-border px-2 py-0.5 font-medium text-foreground">
-                      {a.source}
-                    </span>
-                    {a.author && <span className="normal-case tracking-normal">by {a.author}</span>}
-                    <span>·</span>
-                    <time dateTime={new Date(a.publishedAt).toISOString()} className="normal-case tracking-normal">
-                      {formatRelativeTime(a.publishedAt)}
-                    </time>
-                  </div>
-                  {a.description && (
-                    <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">
-                      {a.description}
-                    </p>
-                  )}
-                </li>
-              ))}
-            </ul>
+                    Try again
+                  </button>
+                </div>
+              )}
+
+              {isFeedReady && articles.length === 0 && (
+                <div className="rounded-xl border border-dashed border-border p-10 text-center">
+                  <p className="text-base font-medium">No articles found.</p>
+                </div>
+              )}
+
+              {isFeedReady && articles.length > 0 && filteredFeed.length === 0 && (
+                <NoSearchResults query={debouncedQuery} onClear={() => setSearchInput("")} />
+              )}
+
+              {isFeedReady && filteredFeed.length > 0 && (
+                <ArticleList
+                  items={filteredFeed}
+                  isBookmarked={isBookmarked}
+                  onToggleBookmark={toggleBookmark}
+                />
+              )}
+            </>
+          )}
+
+          {tab === "saved" && (
+            <>
+              {count === 0 && (
+                <div className="rounded-xl border border-dashed border-border p-10 text-center">
+                  <p className="text-base font-medium">No saved articles yet.</p>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    Tap the bookmark icon on any article in your feed to save it here.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setTab("feed")}
+                    className="mt-4 rounded-full border border-border bg-background px-4 py-1.5 text-xs font-medium transition hover:bg-muted"
+                  >
+                    Browse feed
+                  </button>
+                </div>
+              )}
+
+              {count > 0 && filteredSaved.length === 0 && (
+                <NoSearchResults query={debouncedQuery} onClear={() => setSearchInput("")} />
+              )}
+
+              {count > 0 && filteredSaved.length > 0 && (
+                <ArticleList
+                  items={filteredSaved}
+                  isBookmarked={isBookmarked}
+                  onToggleBookmark={toggleBookmark}
+                  showSavedAt
+                />
+              )}
+            </>
           )}
         </main>
 
@@ -130,6 +250,58 @@ const Index = () => {
     </div>
   );
 };
+
+type ArticleListProps = {
+  items: Article[];
+  isBookmarked: (url: string) => boolean;
+  onToggleBookmark: (article: Article) => void;
+  showSavedAt?: boolean;
+};
+
+function ArticleList({
+  items,
+  isBookmarked,
+  onToggleBookmark,
+  showSavedAt,
+}: ArticleListProps) {
+  return (
+    <ul className="divide-y divide-border">
+      {items.map((a) => (
+        <ArticleCard
+          key={a.url}
+          article={a}
+          bookmarked={isBookmarked(a.url)}
+          savedAt={showSavedAt ? (a as BookmarkedArticle).savedAt : undefined}
+          onToggleBookmark={onToggleBookmark}
+        />
+      ))}
+    </ul>
+  );
+}
+
+function NoSearchResults({
+  query,
+  onClear,
+}: {
+  query: string;
+  onClear: () => void;
+}) {
+  return (
+    <div className="rounded-xl border border-dashed border-border p-10 text-center">
+      <p className="text-base font-medium">No results found.</p>
+      <p className="mt-2 text-sm text-muted-foreground">
+        Nothing matched &ldquo;{query.trim()}&rdquo;. Try a different keyword.
+      </p>
+      <button
+        type="button"
+        onClick={onClear}
+        className="mt-4 rounded-full border border-border bg-background px-4 py-1.5 text-xs font-medium transition hover:bg-muted"
+      >
+        Clear search
+      </button>
+    </div>
+  );
+}
 
 const LoadingList = () => (
   <ul className="divide-y divide-border">

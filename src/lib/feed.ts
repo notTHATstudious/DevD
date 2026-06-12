@@ -1,3 +1,6 @@
+import { isValidArticleUrl } from "@/lib/articleUrl";
+import { parseRss2JsonResponse } from "@/lib/rss2jsonSchema";
+
 export type Article = {
   title: string;
   url: string;
@@ -136,61 +139,6 @@ function stripHtml(html: string): string {
     .trim();
 }
 
-function parseRss(xmlText: string, source: string): Article[] {
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(xmlText, "application/xml");
-
-  if (doc.querySelector("parsererror")) return [];
-
-  const items = Array.from(doc.querySelectorAll("item, entry"));
-  const articles: Article[] = [];
-
-  for (const item of items) {
-    const title = stripHtml(item.querySelector("title")?.textContent ?? "");
-
-    // link: <link>url</link> for RSS, <link href="..."/> for Atom
-    let url = item.querySelector("link")?.textContent?.trim() ?? "";
-    if (!url) {
-      const linkEl = item.querySelector("link");
-      url = linkEl?.getAttribute("href") ?? "";
-    }
-
-    const descRaw =
-      item.querySelector("description")?.textContent ??
-      item.querySelector("summary")?.textContent ??
-      item.querySelector("content")?.textContent ??
-      "";
-    const description = stripHtml(descRaw).slice(0, 400);
-
-    const pubDateStr =
-      item.querySelector("pubDate")?.textContent ??
-      item.querySelector("published")?.textContent ??
-      item.querySelector("updated")?.textContent ??
-      "";
-    const publishedAt = pubDateStr ? Date.parse(pubDateStr) : NaN;
-    if (!publishedAt || Number.isNaN(publishedAt)) continue;
-
-    const author =
-      item.querySelector("creator")?.textContent?.trim() ||
-      item.querySelector("author name")?.textContent?.trim() ||
-      item.querySelector("author")?.textContent?.trim() ||
-      undefined;
-
-    if (!title || !url) continue;
-
-    articles.push({
-      title,
-      url,
-      source,
-      author,
-      publishedAt,
-      description,
-    });
-  }
-
-  return articles;
-}
-
 type FeedSource = { name: string; url: string };
 
 const FEEDS: FeedSource[] = [
@@ -266,32 +214,19 @@ const FEEDS: FeedSource[] = [
 // rss2json returns JSON with CORS headers — far more reliable than a raw proxy.
 const RSS2JSON = "https://api.rss2json.com/v1/api.json?rss_url=";
 
-type Rss2JsonItem = {
-  title?: string;
-  link?: string;
-  pubDate?: string;
-  author?: string;
-  description?: string;
-  content?: string;
-};
-
-type Rss2JsonResponse = {
-  status?: string;
-  items?: Rss2JsonItem[];
-};
-
 async function fetchFeed(feed: FeedSource): Promise<Article[]> {
   try {
     const res = await fetch(RSS2JSON + encodeURIComponent(feed.url));
     if (!res.ok) return [];
-    const data = (await res.json()) as Rss2JsonResponse;
-    if (data.status !== "ok" || !Array.isArray(data.items)) return [];
+    const data: unknown = await res.json();
+    const parsed = parseRss2JsonResponse(data);
+    if (!parsed) return [];
 
     const articles: Article[] = [];
-    for (const it of data.items) {
+    for (const it of parsed.items) {
       const title = stripHtml(it.title ?? "");
       const url = (it.link ?? "").trim();
-      if (!title || !url) continue;
+      if (!title || !url || !isValidArticleUrl(url)) continue;
 
       const publishedAt = it.pubDate ? Date.parse(it.pubDate) : NaN;
       if (!publishedAt || Number.isNaN(publishedAt)) continue;

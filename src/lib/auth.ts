@@ -6,6 +6,10 @@ export type DevUser = {
 const USERS_KEY = "dailyd_users"; // {username: {salt, hash}}
 const SESSION_KEY = "dailyd_session"; // current username
 const TAG_KEY = "dailyd_tag"; // cached random tag per session
+const SESSION_LOGIN_AT_KEY = "dailyd_session_at"; // login timestamp (ms)
+
+/** Session lifetime — 7 days. */
+export const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
 const TAGS = ["Dev", "Coder", "Hacker", "Builder", "Engineer", "Maker", "Shipper", "Tinkerer"];
 
@@ -43,6 +47,24 @@ function writeUsers(users: Record<string, StoredCredential>) {
 
 export function pickRandomTag(): string {
   return TAGS[Math.floor(Math.random() * TAGS.length)];
+}
+
+function readLoginAt(): number | null {
+  const raw = localStorage.getItem(SESSION_LOGIN_AT_KEY);
+  if (!raw) return null;
+  const loginAt = Number(raw);
+  return Number.isFinite(loginAt) ? loginAt : null;
+}
+
+export function isSessionExpired(loginAt: number | null, now = Date.now()): boolean {
+  if (loginAt === null) return true;
+  return now - loginAt > SESSION_TTL_MS;
+}
+
+function clearSession(): void {
+  localStorage.removeItem(SESSION_KEY);
+  localStorage.removeItem(TAG_KEY);
+  localStorage.removeItem(SESSION_LOGIN_AT_KEY);
 }
 
 export async function signUp(username: string, password: string): Promise<void> {
@@ -90,16 +112,23 @@ export async function signIn(username: string, password: string): Promise<void> 
 function startSession(username: string) {
   localStorage.setItem(SESSION_KEY, username);
   localStorage.setItem(TAG_KEY, pickRandomTag());
+  localStorage.setItem(SESSION_LOGIN_AT_KEY, String(Date.now()));
 }
 
 export function signOut() {
-  localStorage.removeItem(SESSION_KEY);
-  localStorage.removeItem(TAG_KEY);
+  clearSession();
 }
 
 export function getCurrentUser(): DevUser | null {
   const username = localStorage.getItem(SESSION_KEY);
   if (!username) return null;
+
+  const loginAt = readLoginAt();
+  if (isSessionExpired(loginAt)) {
+    clearSession();
+    return null;
+  }
+
   let tag = localStorage.getItem(TAG_KEY);
   if (!tag) {
     tag = pickRandomTag();

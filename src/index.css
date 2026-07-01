@@ -125,3 +125,17 @@
     padding-bottom: max(1rem, env(safe-area-inset-bottom));
   }
 }
+
+/* Installed PWA only — applied via applyPwaStandaloneMode() in main.tsx */
+html.pwa-standalone,
+html.pwa-standalone body {
+  overflow-x: hidden;
+  touch-action: pan-y;
+  overscroll-behavior: none;
+  max-width: 100%;
+}
+
+html.pwa-standalone #root {
+  overflow-x: hidden;
+  max-width: 100%;
+}

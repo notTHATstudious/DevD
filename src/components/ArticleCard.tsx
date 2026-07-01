@@ -5,7 +5,9 @@ import { formatRelativeTime, type Article } from "@/lib/feed";
 type Props = {
   article: Article;
   bookmarked: boolean;
+  read: boolean;
   onToggleBookmark: (article: Article) => void;
+  onOpenArticle?: (article: Article) => void;
   /** Shown on saved tab — when the article was bookmarked */
   savedAt?: number;
 };
@@ -13,32 +15,60 @@ type Props = {
 export default function ArticleCard({
   article,
   bookmarked,
+  read,
   onToggleBookmark,
+  onOpenArticle,
   savedAt,
 }: Props) {
   const safeUrl = isValidArticleUrl(article.url) ? article.url.trim() : null;
 
+  const handleOpen = () => {
+    if (safeUrl) onOpenArticle?.(article);
+  };
+
   return (
-    <li className="py-5">
+    <li className={`py-5 ${read ? "opacity-75" : ""}`}>
       <div className="flex items-start gap-3">
         <div className="min-w-0 flex-1">
-          {safeUrl ? (
-            <a
-              href={safeUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="group block"
-            >
-              <h2 className="text-lg font-semibold leading-snug tracking-tight group-hover:underline underline-offset-4">
-                {article.title}
-              </h2>
-            </a>
-          ) : (
-            <h2 className="text-lg font-semibold leading-snug tracking-tight text-muted-foreground">
-              {article.title}
-            </h2>
-          )}
+          <div className="flex items-start gap-2">
+            {!read && (
+              <span
+                className="mt-2 h-2 w-2 shrink-0 rounded-full bg-foreground"
+                aria-hidden="true"
+              />
+            )}
+            <div className="min-w-0 flex-1">
+              {safeUrl ? (
+                <a
+                  href={safeUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={handleOpen}
+                  className="group block"
+                >
+                  <h2
+                    className={`text-lg leading-snug tracking-tight group-hover:underline underline-offset-4 ${
+                      read
+                        ? "font-medium text-muted-foreground"
+                        : "font-semibold text-foreground"
+                    }`}
+                  >
+                    {article.title}
+                  </h2>
+                </a>
+              ) : (
+                <h2 className="text-lg font-semibold leading-snug tracking-tight text-muted-foreground">
+                  {article.title}
+                </h2>
+              )}
+            </div>
+          </div>
           <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] uppercase tracking-wider text-muted-foreground">
+            {read && (
+              <span className="rounded-full border border-border bg-muted px-2 py-0.5 font-medium text-muted-foreground">
+                Read
+              </span>
+            )}
             <span className="rounded-full border border-border px-2 py-0.5 font-medium text-foreground">
               {article.source}
             </span>

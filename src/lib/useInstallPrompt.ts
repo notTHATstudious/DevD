@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
+import { isStandalone } from "@/lib/pwaStandalone";
 
 type BeforeInstallPromptEvent = Event & {
   prompt: () => Promise<void>;
@@ -8,15 +9,6 @@ type BeforeInstallPromptEvent = Event & {
 function isIOS(): boolean {
   if (typeof navigator === "undefined") return false;
   return /iphone|ipad|ipod/i.test(navigator.userAgent);
-}
-
-function isStandalone(): boolean {
-  if (typeof window === "undefined") return false;
-  return (
-    window.matchMedia("(display-mode: standalone)").matches ||
-    // iOS Safari
-    (navigator as unknown as { standalone?: boolean }).standalone === true
-  );
 }
 
 export function useInstallPrompt() {

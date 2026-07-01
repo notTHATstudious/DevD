@@ -4,8 +4,10 @@ import { type Article } from "@/lib/feed";
 import { getCurrentUser, signOut, type DevUser } from "@/lib/auth";
 import { type BookmarkedArticle } from "@/lib/bookmarks";
 import { filterArticles } from "@/lib/search";
+import { filterArticlesByReadState, type ReadFilter } from "@/lib/readState";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { useBookmarks } from "@/lib/useBookmarks";
+import { useReadState } from "@/lib/useReadState";
 import { useFeed } from "@/lib/useFeed";
 import AuthScreen from "@/components/AuthScreen";
 import AppHeader from "@/components/AppHeader";
@@ -17,6 +19,7 @@ const Index = () => {
   const [user, setUser] = useState<DevUser | null>(() => getCurrentUser());
   const [tab, setTab] = useState<Tab>("feed");
   const [searchInput, setSearchInput] = useState("");
+  const [readFilter, setReadFilter] = useState<ReadFilter>("all");
   const debouncedQuery = useDebouncedValue(searchInput, 300);
 
   const {
@@ -36,16 +39,28 @@ const Index = () => {
     user?.username ?? "",
   );
 
-  const filteredFeed = useMemo(
+  const { isRead, markRead } = useReadState(user?.username ?? "");
+
+  const searchFilteredFeed = useMemo(
     () => filterArticles(articles, debouncedQuery),
     [articles, debouncedQuery],
   );
-  const filteredSaved = useMemo(
+  const searchFilteredSaved = useMemo(
     () => filterArticles(bookmarks, debouncedQuery),
     [bookmarks, debouncedQuery],
   );
 
+  const filteredFeed = useMemo(
+    () => filterArticlesByReadState(searchFilteredFeed, readFilter, isRead),
+    [searchFilteredFeed, readFilter, isRead],
+  );
+  const filteredSaved = useMemo(
+    () => filterArticlesByReadState(searchFilteredSaved, readFilter, isRead),
+    [searchFilteredSaved, readFilter, isRead],
+  );
+
   const isSearching = debouncedQuery.trim().length > 0;
+  const isReadFiltering = readFilter !== "all";
   const errorMsg =
     error instanceof Error ? error.message : "Failed to load feed";
 
@@ -59,6 +74,11 @@ const Index = () => {
   };
 
   const showSearch = tab === "feed" ? isFeedReady && articles.length > 0 : count > 0;
+  const showReadFilters = showSearch;
+
+  const handleOpenArticle = (article: Article) => {
+    markRead(article.url);
+  };
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -126,7 +146,7 @@ const Index = () => {
                     {articles.length} article{articles.length === 1 ? "" : "s"}
                   </span>
                 )}
-                {isFeedReady && isSearching && (
+                {isFeedReady && (isSearching || isReadFiltering) && (
                   <span className="text-[11px] uppercase tracking-wider text-muted-foreground">
                     {filteredFeed.length} result{filteredFeed.length === 1 ? "" : "s"}
                   </span>
@@ -139,12 +159,31 @@ const Index = () => {
                 {count} saved
               </span>
             )}
-            {tab === "saved" && count > 0 && isSearching && (
+            {tab === "saved" && count > 0 && (isSearching || isReadFiltering) && (
               <span className="text-[11px] uppercase tracking-wider text-muted-foreground">
                 {filteredSaved.length} result{filteredSaved.length === 1 ? "" : "s"}
               </span>
             )}
           </div>
+
+          {showReadFilters && (
+            <div className="mt-3 inline-flex rounded-full border border-border p-0.5">
+              {(["all", "unread", "read"] as const).map((f) => (
+                <button
+                  key={f}
+                  type="button"
+                  onClick={() => setReadFilter(f)}
+                  className={`rounded-full px-3 py-1 text-xs font-medium capitalize transition ${
+                    readFilter === f
+                      ? "bg-foreground text-background"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {f}
+                </button>
+              ))}
+            </div>
+          )}
 
           {showSearch && (
             <div className="relative mt-4">
@@ -195,15 +234,24 @@ const Index = () => {
                 </div>
               )}
 
-              {isFeedReady && articles.length > 0 && filteredFeed.length === 0 && (
+              {isFeedReady && articles.length > 0 && searchFilteredFeed.length === 0 && (
                 <NoSearchResults query={debouncedQuery} onClear={() => setSearchInput("")} />
               )}
+
+              {isFeedReady &&
+                searchFilteredFeed.length > 0 &&
+                filteredFeed.length === 0 &&
+                isReadFiltering && (
+                  <NoReadFilterResults filter={readFilter} onClear={() => setReadFilter("all")} />
+                )}
 
               {isFeedReady && filteredFeed.length > 0 && (
                 <ArticleList
                   items={filteredFeed}
                   isBookmarked={isBookmarked}
+                  isRead={isRead}
                   onToggleBookmark={toggleBookmark}
+                  onOpenArticle={handleOpenArticle}
                 />
               )}
             </>
@@ -227,15 +275,24 @@ const Index = () => {
                 </div>
               )}
 
-              {count > 0 && filteredSaved.length === 0 && (
+              {count > 0 && searchFilteredSaved.length === 0 && (
                 <NoSearchResults query={debouncedQuery} onClear={() => setSearchInput("")} />
               )}
+
+              {count > 0 &&
+                searchFilteredSaved.length > 0 &&
+                filteredSaved.length === 0 &&
+                isReadFiltering && (
+                  <NoReadFilterResults filter={readFilter} onClear={() => setReadFilter("all")} />
+                )}
 
               {count > 0 && filteredSaved.length > 0 && (
                 <ArticleList
                   items={filteredSaved}
                   isBookmarked={isBookmarked}
+                  isRead={isRead}
                   onToggleBookmark={toggleBookmark}
+                  onOpenArticle={handleOpenArticle}
                   showSavedAt
                 />
               )}
@@ -254,14 +311,18 @@ const Index = () => {
 type ArticleListProps = {
   items: Article[];
   isBookmarked: (url: string) => boolean;
+  isRead: (url: string) => boolean;
   onToggleBookmark: (article: Article) => void;
+  onOpenArticle: (article: Article) => void;
   showSavedAt?: boolean;
 };
 
 function ArticleList({
   items,
   isBookmarked,
+  isRead,
   onToggleBookmark,
+  onOpenArticle,
   showSavedAt,
 }: ArticleListProps) {
   return (
@@ -271,11 +332,38 @@ function ArticleList({
           key={a.url}
           article={a}
           bookmarked={isBookmarked(a.url)}
+          read={isRead(a.url)}
           savedAt={showSavedAt ? (a as BookmarkedArticle).savedAt : undefined}
           onToggleBookmark={onToggleBookmark}
+          onOpenArticle={onOpenArticle}
         />
       ))}
     </ul>
+  );
+}
+
+function NoReadFilterResults({
+  filter,
+  onClear,
+}: {
+  filter: ReadFilter;
+  onClear: () => void;
+}) {
+  const label = filter === "read" ? "read" : "unread";
+  return (
+    <div className="rounded-xl border border-dashed border-border p-10 text-center">
+      <p className="text-base font-medium">No {label} articles.</p>
+      <p className="mt-2 text-sm text-muted-foreground">
+        Try switching filters or open some articles from your feed.
+      </p>
+      <button
+        type="button"
+        onClick={onClear}
+        className="mt-4 rounded-full border border-border bg-background px-4 py-1.5 text-xs font-medium transition hover:bg-muted"
+      >
+        Show all
+      </button>
+    </div>
   );
 }
 

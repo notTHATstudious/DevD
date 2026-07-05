@@ -1,4 +1,5 @@
-import { Moon, Sun, Download, LogOut } from "lucide-react";
+import { Moon, Sun, Download, LogOut, MessageSquare } from "lucide-react";
+import { Link, useLocation } from "react-router-dom";
 import { useTheme } from "@/lib/useTheme";
 import { useInstallPrompt } from "@/lib/useInstallPrompt";
 import type { DevUser } from "@/lib/auth";
@@ -13,6 +14,7 @@ export default function AppHeader({ user, onSignOut }: Props) {
   const { theme, toggle } = useTheme();
   const { canInstall, installed, ios, promptInstall } = useInstallPrompt();
   const [showIosHint, setShowIosHint] = useState(false);
+  const location = useLocation();
 
   const handleInstall = async () => {
     if (ios && !installed) {
@@ -41,6 +43,21 @@ export default function AppHeader({ user, onSignOut }: Props) {
         </div>
 
         <div className="flex items-center gap-1">
+          <Link
+            to={location.pathname === "/assistant" ? "/" : "/assistant"}
+            aria-label="DevD Assistant"
+            className="hidden sm:inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-3 py-1.5 text-xs font-medium transition hover:bg-muted"
+          >
+            <MessageSquare className="h-3.5 w-3.5" />
+            {location.pathname === "/assistant" ? "Feed" : "Assistant"}
+          </Link>
+          <Link
+            to={location.pathname === "/assistant" ? "/" : "/assistant"}
+            aria-label="DevD Assistant"
+            className="inline-flex sm:hidden h-9 w-9 items-center justify-center rounded-full border border-border transition hover:bg-muted"
+          >
+            <MessageSquare className="h-4 w-4" />
+          </Link>
           {showInstallButton && (
             <button
               onClick={handleInstall}

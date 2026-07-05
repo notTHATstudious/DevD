@@ -6,8 +6,8 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     APP_NAME: str = "DailyD Backend"
     APP_VERSION: str = "2.0"
-    APP_ENV: str = "production"
-    DEBUG: bool = False
+    APP_ENV: str = "development"
+    DEBUG: bool = True
     
     # Server settings
     HOST: str = "0.0.0.0"

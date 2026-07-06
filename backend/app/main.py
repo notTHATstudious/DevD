@@ -1,5 +1,7 @@
 import logging
 import time
+import asyncio
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -7,6 +9,25 @@ from app.api.v1.router import api_router
 from app.config import settings
 from app.core.exceptions import register_exception_handlers
 from app.core.logging import setup_logging
+from app.services.cache_service import article_cache
+from app.api.deps import get_feed_service
+
+async def cache_refresh_task():
+    while True:
+        await asyncio.sleep(300) # 5 minutes
+        feed_service = get_feed_service()
+        await article_cache.refresh_cache(feed_service)
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup: Warm up cache
+    feed_service = get_feed_service()
+    await article_cache.refresh_cache(feed_service)
+    # Start background task
+    task = asyncio.create_task(cache_refresh_task())
+    yield
+    # Shutdown: Cancel background task
+    task.cancel()
 
 # Initialize logging before FastAPI startup
 setup_logging()
@@ -18,6 +39,7 @@ app = FastAPI(
     debug=settings.DEBUG,
     docs_url="/docs" if settings.APP_ENV != "production" else None,
     redoc_url="/redoc" if settings.APP_ENV != "production" else None,
+    lifespan=lifespan,
 )
 
 # Apply CORS Middleware configurations

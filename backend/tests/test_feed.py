@@ -153,7 +153,7 @@ async def test_feed_service_processing() -> None:
 def test_get_articles_endpoint_and_partial_failures() -> None:
     client = TestClient(app)
     
-    # Mock FeedService to return test set
+    # Mock ArticleCache to return test set
     mock_articles = [
         {
             "title": "Service Article 1",
@@ -170,9 +170,10 @@ def test_get_articles_endpoint_and_partial_failures() -> None:
         }
     ]
 
-    with patch("app.services.feed_service.FeedService.get_aggregated_feed", new_callable=AsyncMock) as mock_get:
-        mock_get.return_value = mock_articles
+    with patch("app.api.v1.endpoints.articles.article_cache.get_cached_articles", new_callable=AsyncMock) as mock_get:
+        mock_get.return_value = (mock_articles, 1234567890)
         
+        # TestClient without `with` doesn't trigger lifespan, which is fine here since we mock the cache
         response = client.get("/api/v1/articles")
         assert response.status_code == 200
         
@@ -181,3 +182,5 @@ def test_get_articles_endpoint_and_partial_failures() -> None:
         assert len(data["articles"]) == 1
         assert data["articles"][0]["title"] == "Service Article 1"
         assert data["articles"][0]["isCommunity"] is True
+        assert data["lastUpdated"] == 1234567890
+        assert data["articleCount"] == 1

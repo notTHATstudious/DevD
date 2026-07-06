@@ -1,19 +1,19 @@
 from fastapi import APIRouter, Depends
 from app.schemas.article import ArticleResponse
-from app.services.feed_service import FeedService
-from app.api.deps import get_feed_service
+from app.services.cache_service import article_cache
 
 router = APIRouter()
 
 @router.get("/articles", response_model=ArticleResponse)
-async def get_articles(
-    feed_service: FeedService = Depends(get_feed_service)
-) -> ArticleResponse:
+async def get_articles() -> ArticleResponse:
     """
-    Fetch, aggregate, normalize, deduplicate, and sort articles from all configured feed sources.
+    Fetch articles from the in-memory cache.
+    The cache is refreshed in the background automatically.
     """
-    articles = await feed_service.get_aggregated_feed()
+    articles, last_updated = await article_cache.get_cached_articles()
     return ArticleResponse(
         total=len(articles),
-        articles=articles
+        articles=articles,
+        lastUpdated=last_updated,
+        articleCount=len(articles)
     )

@@ -23,3 +23,5 @@ class Article(BaseModel):
 class ArticleResponse(BaseModel):
     total: int
     articles: List[Article]
+    lastUpdated: Optional[int] = None
+    articleCount: Optional[int] = None

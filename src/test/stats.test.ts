@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { Article } from "@/lib/feed";
-import type { ReadEntry } from "@/lib/readState";
+import { normalizeArticleUrl, type ReadEntry } from "@/lib/readState";
 import { calculateReadingStats } from "@/lib/stats";
 
 describe("calculateReadingStats", () => {
@@ -35,7 +35,7 @@ describe("calculateReadingStats", () => {
 
   it("calculates baseline available, read, and unread metrics", () => {
     const readEntries: ReadEntry[] = [
-      { url: "https://example.com/java-thread", readAt: now - 1000 },
+      { key: normalizeArticleUrl("https://example.com/java-thread"), readAt: now - 1000 },
     ];
 
     const stats = calculateReadingStats(articles, readEntries, 2, now);
@@ -53,9 +53,9 @@ describe("calculateReadingStats", () => {
 
     const readEntries: ReadEntry[] = [
       // read today
-      { url: "https://example.com/java-thread", readAt: startOfTodayMs + 1000 },
+      { key: normalizeArticleUrl("https://example.com/java-thread"), readAt: startOfTodayMs + 1000 },
       // read yesterday
-      { url: "https://example.com/k8s-pod", readAt: startOfTodayMs - 5000 },
+      { key: normalizeArticleUrl("https://example.com/k8s-pod"), readAt: startOfTodayMs - 5000 },
     ];
 
     const stats = calculateReadingStats(articles, readEntries, 0, now);
@@ -64,8 +64,8 @@ describe("calculateReadingStats", () => {
 
   it("determines the top read topic and top source accurately", () => {
     const readEntries: ReadEntry[] = [
-      { url: "https://example.com/java-thread", readAt: now },
-      { url: "https://example.com/mongo-index", readAt: now },
+      { key: normalizeArticleUrl("https://example.com/java-thread"), readAt: now },
+      { key: normalizeArticleUrl("https://example.com/mongo-index"), readAt: now },
     ];
 
     const stats = calculateReadingStats(articles, readEntries, 0, now);

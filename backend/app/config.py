@@ -5,9 +5,13 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     APP_NAME: str = "DailyD Backend"
-    APP_VERSION: str = "2.0"
+    APP_VERSION: str = "3.2"
     APP_ENV: str = "development"
-    DEBUG: bool = True
+    DEBUG: bool = False
+
+    # Feed cache
+    CACHE_REFRESH_SECONDS: int = 300
+    BACKGROUND_REFRESH: bool = True  # tests turn this off to avoid network calls
     
     # Server settings
     HOST: str = "0.0.0.0"

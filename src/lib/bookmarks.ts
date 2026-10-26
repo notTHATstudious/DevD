@@ -1,112 +1,108 @@
-import { isValidArticleUrl } from "@/lib/articleUrl";
+import { isValidArticleUrl, normalizeArticleUrl } from "@/lib/articleUrl";
 import type { Article } from "@/lib/feed";
+import { createLocalStore, readJson, removeKeys } from "@/lib/localStore";
+
+export { normalizeArticleUrl };
 
 export type BookmarkedArticle = Article & { savedAt: number };
 
-const BOOKMARKS_KEY = "dailyd_bookmarks";
+export const BOOKMARKS_KEY = "dailyd_bookmarks_v2";
+/** v1 stored `{ [username]: BookmarkedArticle[] }` behind the old local login. */
+export const LEGACY_BOOKMARKS_KEY = "dailyd_bookmarks";
 
-type BookmarkStore = Record<string, BookmarkedArticle[]>;
+/** Hard caps so saved data can't grow without bound. */
+export const MAX_BOOKMARKS = 300;
+const MAX_DESCRIPTION_CHARS = 300;
+const MAX_TOPICS = 8;
 
-/** Same normalization as feed dedupe — stable key for duplicate prevention. */
-export function normalizeArticleUrl(url: string): string {
-  return url.split("?")[0].replace(/\/$/, "").toLowerCase();
+function sanitizeArticle(item: unknown): BookmarkedArticle | null {
+  if (!item || typeof item !== "object") return null;
+  const a = item as Partial<BookmarkedArticle>;
+  if (typeof a.title !== "string" || typeof a.url !== "string") return null;
+  if (typeof a.source !== "string" || typeof a.publishedAt !== "number") return null;
+  if (!isValidArticleUrl(a.url)) return null;
+  const out: BookmarkedArticle = {
+    title: a.title,
+    url: a.url.trim(),
+    source: a.source,
+    publishedAt: a.publishedAt,
+    description: typeof a.description === "string" ? a.description.slice(0, MAX_DESCRIPTION_CHARS) : "",
+    // v1 dropped topics/flags, which made saved articles vanish under topic filters.
+    topics: Array.isArray(a.topics)
+      ? a.topics.filter((t): t is string => typeof t === "string").slice(0, MAX_TOPICS)
+      : [],
+    savedAt: typeof a.savedAt === "number" ? a.savedAt : Date.now(),
+  };
+  if (typeof a.author === "string" && a.author) out.author = a.author;
+  if (a.isOfficial) out.isOfficial = true;
+  if (a.isTutorial) out.isTutorial = true;
+  if (a.isCommunity) out.isCommunity = true;
+  if (a.isNews) out.isNews = true;
+  return out;
 }
 
-function readStore(): BookmarkStore {
-  try {
-    const raw = localStorage.getItem(BOOKMARKS_KEY);
-    if (!raw) return {};
-    const parsed: unknown = JSON.parse(raw);
-    if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
-      return {};
-    }
-    return parsed as BookmarkStore;
-  } catch {
-    return {};
-  }
-}
-
-function writeStore(store: BookmarkStore): void {
-  localStorage.setItem(BOOKMARKS_KEY, JSON.stringify(store));
-}
-
-function userKey(username: string): string {
-  return username.trim().toLowerCase();
-}
-
-function sanitizeList(list: unknown): BookmarkedArticle[] {
+export function sanitizeBookmarks(list: unknown): BookmarkedArticle[] {
   if (!Array.isArray(list)) return [];
   const seen = new Set<string>();
   const out: BookmarkedArticle[] = [];
   for (const item of list) {
-    if (!item || typeof item !== "object") continue;
-    const a = item as Partial<BookmarkedArticle>;
-    if (typeof a.title !== "string" || typeof a.url !== "string") continue;
-    if (typeof a.source !== "string" || typeof a.publishedAt !== "number") continue;
-    if (typeof a.description !== "string") continue;
-    if (!isValidArticleUrl(a.url)) continue;
+    const a = sanitizeArticle(item);
+    if (!a) continue;
     const key = normalizeArticleUrl(a.url);
     if (seen.has(key)) continue;
     seen.add(key);
-    out.push({
-      title: a.title,
-      url: a.url,
-      source: a.source,
-      author: typeof a.author === "string" ? a.author : undefined,
-      publishedAt: a.publishedAt,
-      description: a.description,
-      savedAt: typeof a.savedAt === "number" ? a.savedAt : Date.now(),
-    });
+    out.push(a);
   }
   out.sort((a, b) => b.savedAt - a.savedAt);
-  return out;
+  return out.slice(0, MAX_BOOKMARKS);
 }
 
-export function getBookmarks(username: string): BookmarkedArticle[] {
-  const store = readStore();
-  return sanitizeList(store[userKey(username)]);
+/** Merge every v1 user's bookmarks into the single, login-free list. */
+function migrateLegacy(): BookmarkedArticle[] | null {
+  const legacy = readJson(LEGACY_BOOKMARKS_KEY);
+  if (legacy === null) return null;
+  removeKeys([LEGACY_BOOKMARKS_KEY]);
+  if (Array.isArray(legacy)) return sanitizeBookmarks(legacy);
+  if (typeof legacy !== "object") return [];
+  return sanitizeBookmarks(Object.values(legacy as Record<string, unknown>).flat());
 }
 
-export function getBookmarkCount(username: string): number {
-  return getBookmarks(username).length;
+export const bookmarkStore = createLocalStore<BookmarkedArticle[]>({
+  key: BOOKMARKS_KEY,
+  parse: sanitizeBookmarks,
+  migrate: migrateLegacy,
+});
+
+export function getBookmarks(): BookmarkedArticle[] {
+  return bookmarkStore.get();
 }
 
-export function isBookmarked(username: string, url: string): boolean {
+export function getBookmarkCount(): number {
+  return getBookmarks().length;
+}
+
+export function isBookmarked(url: string): boolean {
   const key = normalizeArticleUrl(url);
-  return getBookmarks(username).some((b) => normalizeArticleUrl(b.url) === key);
+  return getBookmarks().some((b) => normalizeArticleUrl(b.url) === key);
 }
 
-export function addBookmark(username: string, article: Article): BookmarkedArticle[] {
-  const u = userKey(username);
-  const store = readStore();
-  const list = sanitizeList(store[u]);
-  if (!isValidArticleUrl(article.url)) return list;
-  const key = normalizeArticleUrl(article.url);
-  if (list.some((b) => normalizeArticleUrl(b.url) === key)) {
-    return list;
-  }
-  const next: BookmarkedArticle[] = [
-    { ...article, savedAt: Date.now() },
-    ...list,
-  ];
-  store[u] = next;
-  writeStore(store);
+export function addBookmark(article: Article): BookmarkedArticle[] {
+  const list = getBookmarks();
+  if (!isValidArticleUrl(article.url) || isBookmarked(article.url)) return list;
+  const entry = sanitizeArticle({ ...article, savedAt: Date.now() });
+  if (!entry) return list;
+  const next = [entry, ...list].slice(0, MAX_BOOKMARKS);
+  bookmarkStore.set(next);
   return next;
 }
 
-export function removeBookmark(username: string, url: string): BookmarkedArticle[] {
-  const u = userKey(username);
-  const store = readStore();
+export function removeBookmark(url: string): BookmarkedArticle[] {
   const key = normalizeArticleUrl(url);
-  const next = sanitizeList(store[u]).filter((b) => normalizeArticleUrl(b.url) !== key);
-  store[u] = next;
-  writeStore(store);
+  const next = getBookmarks().filter((b) => normalizeArticleUrl(b.url) !== key);
+  bookmarkStore.set(next);
   return next;
 }
 
-export function toggleBookmark(username: string, article: Article): BookmarkedArticle[] {
-  if (isBookmarked(username, article.url)) {
-    return removeBookmark(username, article.url);
-  }
-  return addBookmark(username, article);
+export function toggleBookmark(article: Article): BookmarkedArticle[] {
+  return isBookmarked(article.url) ? removeBookmark(article.url) : addBookmark(article);
 }

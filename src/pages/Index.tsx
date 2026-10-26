@@ -1,378 +1,265 @@
-import { useMemo, useState } from "react";
-import { Search, X } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { BarChart3, Bookmark, Newspaper, Search, SlidersHorizontal, X } from "lucide-react";
 import { type Article } from "@/lib/feed";
-import { getCurrentUser, signOut, type DevUser } from "@/lib/auth";
 import { filterArticles } from "@/lib/search";
 import { filterArticlesByReadState, type ReadFilter } from "@/lib/readState";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { useBookmarks } from "@/lib/useBookmarks";
 import { useReadState } from "@/lib/useReadState";
 import { useFeed } from "@/lib/useFeed";
-import AuthScreen from "@/components/AuthScreen";
 import AppHeader from "@/components/AppHeader";
-import ArticleCard from "@/components/ArticleCard";
+import ArticleList from "@/components/ArticleList";
+import CategoryChips from "@/components/CategoryChips";
+import EmptyState from "@/components/EmptyState";
+import PreferencesPanel from "@/components/PreferencesPanel";
+import StatsPanel from "@/components/StatsPanel";
 import {
-  TOPICS,
   TOPIC_KEYS,
   getSavedPreferences,
   savePreferences,
   filterByTopicPreferences,
-  type TopicKey,
   type TopicPreferences,
 } from "@/lib/preferences";
+import { filterByCategory, type CategoryKey } from "@/lib/categories";
 import { sortArticlesByRelevance } from "@/lib/ranking";
 import { calculateReadingStats } from "@/lib/stats";
 
 type Tab = "feed" | "saved" | "preferences" | "stats";
 
+const TABS: { key: Tab; label: string; icon: typeof Newspaper }[] = [
+  { key: "feed", label: "Feed", icon: Newspaper },
+  { key: "saved", label: "Saved", icon: Bookmark },
+  { key: "preferences", label: "Topics", icon: SlidersHorizontal },
+  { key: "stats", label: "Stats", icon: BarChart3 },
+];
+
+const HEADINGS: Record<Tab, { title: string; subtitle: string }> = {
+  feed: {
+    title: "Today's feed",
+    subtitle: "Engineering blogs, big tech newsrooms and gadget news in one place.",
+  },
+  saved: { title: "Saved articles", subtitle: "Articles you've bookmarked on this device." },
+  preferences: { title: "Your topics", subtitle: "Choose what shows up in your feed." },
+  stats: { title: "Reading stats", subtitle: "A quick look at your reading habits." },
+};
+
+/** After this long without data, explain that the free server may be waking up. */
+const SLOW_LOAD_HINT_MS = 4000;
+
+const EMPTY: Article[] = [];
+
 const Index = () => {
-  const [user, setUser] = useState<DevUser | null>(() => getCurrentUser());
   const [tab, setTab] = useState<Tab>("feed");
   const [searchInput, setSearchInput] = useState("");
   const [readFilter, setReadFilter] = useState<ReadFilter>("all");
-  const [filterChip, setFilterChip] = useState<string>("all");
-  const debouncedQuery = useDebouncedValue(searchInput, 300);
-
+  const [category, setCategory] = useState<CategoryKey>("all");
+  const debouncedQuery = useDebouncedValue(searchInput, 250);
   const [topicPrefs, setTopicPrefs] = useState<TopicPreferences>(getSavedPreferences);
 
   const {
     data: feedData,
     isPending,
-    isRefetching,
+    isFetching,
     isError,
+    isPlaceholderData,
     error,
     refetch,
     dataUpdatedAt,
-  } = useFeed(!!user);
+  } = useFeed();
 
-  const articles = feedData?.articles ?? [];
-  const isFeedLoading = isPending || isRefetching;
-  const isFeedReady = !isFeedLoading && !isError;
+  const articles = feedData?.articles ?? EMPTY;
+  const hasArticles = articles.length > 0;
 
-  const { bookmarks, count, isBookmarked, toggleBookmark } = useBookmarks(
-    user?.username ?? "",
-  );
+  const { bookmarks, count, isBookmarked, toggleBookmark } = useBookmarks();
+  const { readEntries, isRead, markRead, clearHistory } = useReadState();
 
-  const { readEntries, isRead, markRead } = useReadState(user?.username ?? "");
+  const [slowLoad, setSlowLoad] = useState(false);
+  useEffect(() => {
+    if (!isPending) {
+      setSlowLoad(false);
+      return;
+    }
+    const t = setTimeout(() => setSlowLoad(true), SLOW_LOAD_HINT_MS);
+    return () => clearTimeout(t);
+  }, [isPending]);
 
-  const handleTogglePreference = (key: TopicKey) => {
-    const updated = { ...topicPrefs, [key]: !topicPrefs[key] };
-    setTopicPrefs(updated);
-    savePreferences(updated);
+  const handlePrefsChange = (next: TopicPreferences) => {
+    setTopicPrefs(next);
+    savePreferences(next);
   };
 
-  // 1. Topic preferences filtering
-  const topicFilteredArticles = useMemo(() => {
-    return filterByTopicPreferences(articles, topicPrefs);
-  }, [articles, topicPrefs]);
+  const activeTopicKeys = useMemo(() => TOPIC_KEYS.filter((k) => topicPrefs[k]), [topicPrefs]);
 
-  const topicFilteredSaved = useMemo(() => {
-    return filterByTopicPreferences(bookmarks, topicPrefs);
-  }, [bookmarks, topicPrefs]);
-
-  // 2. Relevance Ranking
-  const rankedArticles = useMemo(() => {
-    const activeTopicKeys = Object.keys(topicPrefs).filter((k) => topicPrefs[k as TopicKey]);
-    return sortArticlesByRelevance(topicFilteredArticles, activeTopicKeys);
-  }, [topicFilteredArticles, topicPrefs]);
-
-  // 3. Category Filter Chips
-  const chipFilteredArticles = useMemo(() => {
-    if (filterChip === "all") return rankedArticles;
-    return rankedArticles.filter((art) => {
-      if (filterChip === "official") return art.isOfficial;
-      if (filterChip === "tutorials") return art.isTutorial;
-      if (filterChip === "community") return art.isCommunity;
-      if (filterChip === "news") return art.isNews;
-      
-      const artTopics = art.topics || [];
-      if (filterChip === "ai") {
-        return artTopics.some((t) => ["ai_engineering", "llms", "openai", "anthropic"].includes(t));
-      }
-      if (filterChip === "cloud") {
-        return artTopics.some((t) => ["aws", "azure", "gcp", "cloud_native"].includes(t));
-      }
-      if (filterChip === "devops") {
-        return artTopics.some((t) => ["devops", "ci_cd", "docker", "kubernetes"].includes(t));
-      }
-      if (filterChip === "backend") {
-        return artTopics.some((t) => [
-          "java", "spring_boot", "spring_cloud", "kafka", "microservices",
-          "databases", "postgresql", "mongodb", "redis", "system_design",
-          "backend_engineering", "software_architecture", "performance", "testing"
-        ].includes(t));
-      }
-      return true;
-    });
-  }, [rankedArticles, filterChip]);
-
-  const chipFilteredSaved = useMemo(() => {
-    if (filterChip === "all") return topicFilteredSaved;
-    return topicFilteredSaved.filter((art) => {
-      if (filterChip === "official") return art.isOfficial;
-      if (filterChip === "tutorials") return art.isTutorial;
-      if (filterChip === "community") return art.isCommunity;
-      if (filterChip === "news") return art.isNews;
-      
-      const artTopics = art.topics || [];
-      if (filterChip === "ai") {
-        return artTopics.some((t) => ["ai_engineering", "llms", "openai", "anthropic"].includes(t));
-      }
-      if (filterChip === "cloud") {
-        return artTopics.some((t) => ["aws", "azure", "gcp", "cloud_native"].includes(t));
-      }
-      if (filterChip === "devops") {
-        return artTopics.some((t) => ["devops", "ci_cd", "docker", "kubernetes"].includes(t));
-      }
-      if (filterChip === "backend") {
-        return artTopics.some((t) => [
-          "java", "spring_boot", "spring_cloud", "kafka", "microservices",
-          "databases", "postgresql", "mongodb", "redis", "system_design",
-          "backend_engineering", "software_architecture", "performance", "testing"
-        ].includes(t));
-      }
-      return true;
-    });
-  }, [topicFilteredSaved, filterChip]);
-
-  // 4. Search and read filter composition
-  const searchFilteredFeed = useMemo(
-    () => filterArticles(chipFilteredArticles, debouncedQuery),
-    [chipFilteredArticles, debouncedQuery],
+  // Topic preferences → relevance ranking → category chip.
+  const rankedFeed = useMemo(
+    () => sortArticlesByRelevance(filterByTopicPreferences(articles, topicPrefs), activeTopicKeys),
+    [articles, topicPrefs, activeTopicKeys],
   );
-  const searchFilteredSaved = useMemo(
-    () => filterArticles(chipFilteredSaved, debouncedQuery),
-    [chipFilteredSaved, debouncedQuery],
+  const categoryFeed = useMemo(() => filterByCategory(rankedFeed, category), [rankedFeed, category]);
+  const categorySaved = useMemo(
+    () => filterByCategory(filterByTopicPreferences(bookmarks, topicPrefs), category),
+    [bookmarks, topicPrefs, category],
   );
 
-  const filteredFeed = useMemo(
-    () => filterArticlesByReadState(searchFilteredFeed, readFilter, isRead),
-    [searchFilteredFeed, readFilter, isRead],
+  // Then search, then read/unread.
+  const searchedFeed = useMemo(() => filterArticles(categoryFeed, debouncedQuery), [categoryFeed, debouncedQuery]);
+  const searchedSaved = useMemo(() => filterArticles(categorySaved, debouncedQuery), [categorySaved, debouncedQuery]);
+  const visibleFeed = useMemo(
+    () => filterArticlesByReadState(searchedFeed, readFilter, isRead),
+    [searchedFeed, readFilter, isRead],
   );
-  const filteredSaved = useMemo(
-    () => filterArticlesByReadState(searchFilteredSaved, readFilter, isRead),
-    [searchFilteredSaved, readFilter, isRead],
+  const visibleSaved = useMemo(
+    () => filterArticlesByReadState(searchedSaved, readFilter, isRead),
+    [searchedSaved, readFilter, isRead],
   );
 
-  // 5. Reading statistics
-  const stats = useMemo(() => {
-    return calculateReadingStats(chipFilteredArticles, readEntries, count, Date.now());
-  }, [chipFilteredArticles, readEntries, count]);
+  const stats = useMemo(
+    () => calculateReadingStats(categoryFeed, readEntries, count, Date.now()),
+    [categoryFeed, readEntries, count],
+  );
 
   const isSearching = debouncedQuery.trim().length > 0;
-  const isReadFiltering = readFilter !== "all" || filterChip !== "all";
-  const errorMsg =
-    error instanceof Error ? error.message : "Failed to load feed";
+  const isFiltering = readFilter !== "all" || category !== "all";
+  const resetKey = `${tab}|${category}|${readFilter}|${debouncedQuery}|${activeTopicKeys.length}`;
+  const errorMsg = error instanceof Error ? error.message : "Failed to load feed";
 
-  if (!user) {
-    return <AuthScreen onAuthed={() => setUser(getCurrentUser())} />;
-  }
-
-  const handleSignOut = () => {
-    signOut();
-    setUser(null);
+  const clearFilters = () => {
+    setReadFilter("all");
+    setCategory("all");
   };
 
-  const showSearch = (tab === "feed" || tab === "saved") && (tab === "feed" ? isFeedReady && articles.length > 0 : count > 0);
-  const showReadFilters = tab === "feed" || tab === "saved";
+  const showListControls = tab === "feed" || tab === "saved";
+  const showSearch = tab === "feed" ? hasArticles : tab === "saved" && count > 0;
+  const shownCount = tab === "feed" ? visibleFeed.length : visibleSaved.length;
+  const totalCount = tab === "feed" ? articles.length : count;
 
-  const handleOpenArticle = (article: Article) => {
-    markRead(article.url);
+  const listProps = {
+    isBookmarked,
+    isRead,
+    onToggleBookmark: toggleBookmark,
+    onOpenArticle: (article: Article) => markRead(article.url),
+    resetKey,
   };
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <AppHeader user={user} onSignOut={handleSignOut} />
+      <AppHeader
+        lastUpdated={isPlaceholderData ? undefined : feedData?.lastUpdated}
+        refreshing={isFetching}
+        onRefresh={() => refetch()}
+      />
 
-      <div className="mx-auto max-w-2xl px-4 py-8 sm:py-12">
-        <section className="mb-8">
-          <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-            {tab === "feed" && "Today's feed"}
-            {tab === "saved" && "Saved articles"}
-            {tab === "preferences" && "Personalize"}
-            {tab === "stats" && "Engagement"}
-          </h1>
-          <p className="mt-1.5 text-sm text-muted-foreground">
-            {tab === "feed" && "A curated news platform covering modern technology stacks."}
-            {tab === "saved" && "Articles you've bookmarked on this device."}
-            {tab === "preferences" && "Manage your tech topic preferences."}
-            {tab === "stats" && "Lightweight metrics detailing your reading habits."}
-          </p>
+      <div className="mx-auto max-w-2xl px-4 py-6 sm:py-10">
+        <section className="mb-6">
+          <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">{HEADINGS[tab].title}</h1>
+          <p className="mt-1.5 text-sm text-muted-foreground">{HEADINGS[tab].subtitle}</p>
 
-          <div className="mt-4 flex flex-wrap items-center gap-2">
-            <div className="inline-flex flex-wrap rounded-full border border-border p-0.5">
+          <nav aria-label="Sections" className="mt-5 grid grid-cols-4 rounded-full border border-border p-0.5">
+            {TABS.map(({ key, label, icon: Icon }) => (
               <button
+                key={key}
                 type="button"
-                onClick={() => setTab("feed")}
-                className={`rounded-full px-4 py-1.5 text-xs font-medium transition ${
-                  tab === "feed"
-                    ? "bg-foreground text-background"
-                    : "text-muted-foreground hover:text-foreground"
+                aria-current={tab === key ? "page" : undefined}
+                onClick={() => setTab(key)}
+                className={`inline-flex items-center justify-center gap-1.5 rounded-full px-2 py-1.5 text-xs font-medium transition ${
+                  tab === key ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"
                 }`}
               >
-                Feed
-              </button>
-              <button
-                type="button"
-                onClick={() => setTab("saved")}
-                className={`rounded-full px-4 py-1.5 text-xs font-medium transition ${
-                  tab === "saved"
-                    ? "bg-foreground text-background"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                Saved
-                {count > 0 && (
+                <Icon className="h-3.5 w-3.5" />
+                {label}
+                {key === "saved" && count > 0 && (
                   <span
-                    className={`ml-1.5 inline-flex min-w-[1.25rem] items-center justify-center rounded-full px-1 text-[10px] font-semibold ${
-                      tab === "saved"
-                        ? "bg-background text-foreground"
-                        : "bg-muted text-foreground"
+                    className={`inline-flex min-w-[1.1rem] items-center justify-center rounded-full px-1 text-[10px] font-semibold ${
+                      tab === "saved" ? "bg-background text-foreground" : "bg-muted text-foreground"
                     }`}
                   >
                     {count}
                   </span>
                 )}
               </button>
-              <button
-                type="button"
-                onClick={() => setTab("preferences")}
-                className={`rounded-full px-4 py-1.5 text-xs font-medium transition ${
-                  tab === "preferences"
-                    ? "bg-foreground text-background"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                Topics
-              </button>
-              <button
-                type="button"
-                onClick={() => setTab("stats")}
-                className={`rounded-full px-4 py-1.5 text-xs font-medium transition ${
-                  tab === "stats"
-                    ? "bg-foreground text-background"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                Stats
-              </button>
-            </div>
+            ))}
+          </nav>
 
-            {tab === "feed" && (
-              <>
-                <button
-                  onClick={() => refetch()}
-                  disabled={isFeedLoading}
-                  className="rounded-full border border-border bg-background px-4 py-1.5 text-xs font-medium transition hover:bg-muted disabled:opacity-50"
-                >
-                  {isFeedLoading ? "Refreshing…" : "Refresh"}
-                </button>
-                {isFeedReady && !isSearching && !isReadFiltering && (
-                  <span className="text-[11px] uppercase tracking-wider text-muted-foreground">
-                    {articles.length} total
-                  </span>
-                )}
-                {isFeedReady && (isSearching || isReadFiltering) && (
-                  <span className="text-[11px] uppercase tracking-wider text-muted-foreground">
-                    {filteredFeed.length} match{filteredFeed.length === 1 ? "" : "es"}
-                  </span>
-                )}
-              </>
-            )}
-
-            {tab === "saved" && count > 0 && !isSearching && !isReadFiltering && (
-              <span className="text-[11px] uppercase tracking-wider text-muted-foreground">
-                {count} saved
-              </span>
-            )}
-            {tab === "saved" && count > 0 && (isSearching || isReadFiltering) && (
-              <span className="text-[11px] uppercase tracking-wider text-muted-foreground">
-                {filteredSaved.length} match{filteredSaved.length === 1 ? "" : "es"}
-              </span>
-            )}
-          </div>
-
-          {showReadFilters && (
-            <div className="mt-3 flex flex-col gap-2">
-              <div className="inline-flex rounded-full border border-border p-0.5 w-fit">
-                {(["all", "unread", "read"] as const).map((f) => (
-                  <button
-                    key={f}
-                    type="button"
-                    onClick={() => setReadFilter(f)}
-                    className={`rounded-full px-3 py-1 text-xs font-medium capitalize transition ${
-                      readFilter === f
-                        ? "bg-foreground text-background"
-                        : "text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    {f}
-                  </button>
-                ))}
-              </div>
-
-              <div className="flex flex-wrap gap-1.5 mt-1 overflow-x-auto pb-1 no-scrollbar shrink-0">
-                {[
-                  { key: "all", label: "All Topics" },
-                  { key: "official", label: "Official" },
-                  { key: "tutorials", label: "Tutorials" },
-                  { key: "community", label: "Community" },
-                  { key: "news", label: "News" },
-                  { key: "ai", label: "AI" },
-                  { key: "cloud", label: "Cloud" },
-                  { key: "devops", label: "DevOps" },
-                  { key: "backend", label: "Backend" },
-                ].map((chip) => (
-                  <button
-                    key={chip.key}
-                    type="button"
-                    onClick={() => setFilterChip(chip.key)}
-                    className={`rounded-full px-3 py-1 text-xs font-medium transition shrink-0 ${
-                      filterChip === chip.key
-                        ? "bg-muted text-foreground border border-foreground font-semibold"
-                        : "bg-muted/40 text-muted-foreground border border-border hover:text-foreground"
-                    }`}
-                  >
-                    {chip.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {showSearch && (
-            <div className="relative mt-4">
-              <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <input
-                type="search"
-                value={searchInput}
-                onChange={(e) => setSearchInput(e.target.value)}
-                placeholder="Search title, source, author…"
-                aria-label="Search articles"
-                className="w-full rounded-lg border border-input bg-background py-2.5 pl-10 pr-10 text-sm outline-none transition focus:border-foreground focus:ring-1 focus:ring-foreground"
-              />
-              {searchInput && (
-                <button
-                  type="button"
-                  onClick={() => setSearchInput("")}
-                  aria-label="Clear search"
-                  className="absolute right-2 top-1/2 inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground transition hover:bg-muted hover:text-foreground"
-                >
-                  <X className="h-3.5 w-3.5" />
-                </button>
+          {showListControls && (
+            <div className="mt-4 space-y-3">
+              {showSearch && (
+                <div className="relative">
+                  <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <input
+                    type="search"
+                    value={searchInput}
+                    onChange={(e) => setSearchInput(e.target.value)}
+                    placeholder="Search title, source, author…"
+                    aria-label="Search articles"
+                    className="w-full rounded-lg border border-input bg-background py-2.5 pl-10 pr-10 text-sm outline-none transition focus:border-foreground focus:ring-1 focus:ring-foreground"
+                  />
+                  {searchInput && (
+                    <button
+                      type="button"
+                      onClick={() => setSearchInput("")}
+                      aria-label="Clear search"
+                      className="absolute right-2 top-1/2 inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground transition hover:bg-muted hover:text-foreground"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                </div>
               )}
+
+              <CategoryChips value={category} onChange={setCategory} />
+
+              <div className="flex items-center justify-between gap-3">
+                <div className="inline-flex rounded-full border border-border p-0.5">
+                  {(["all", "unread", "read"] as const).map((f) => (
+                    <button
+                      key={f}
+                      type="button"
+                      onClick={() => setReadFilter(f)}
+                      className={`rounded-full px-3 py-1 text-xs font-medium capitalize transition ${
+                        readFilter === f ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      {f}
+                    </button>
+                  ))}
+                </div>
+                {totalCount > 0 && (
+                  <span className="text-[11px] uppercase tracking-wider text-muted-foreground">
+                    {isSearching || isFiltering ? `${shownCount} of ${totalCount}` : `${totalCount} articles`}
+                  </span>
+                )}
+              </div>
             </div>
           )}
         </section>
 
-        <main className="pb-16">
+        <main className="pb-24">
           {tab === "feed" && (
             <>
-              {isFeedLoading && <LoadingList />}
+              {isPlaceholderData && (
+                <Notice>Showing your last saved feed while the latest articles load…</Notice>
+              )}
+              {isError && hasArticles && !isFetching && (
+                <Notice action={{ label: "Retry", onClick: () => refetch() }}>
+                  Couldn't refresh the feed ({errorMsg}). Showing what was loaded before.
+                </Notice>
+              )}
 
-              {isError && (
+              {isPending && (
+                <>
+                  {slowLoad && (
+                    <Notice>
+                      Waking up the server — on free hosting the first load after a while can take up to
+                      30 seconds.
+                    </Notice>
+                  )}
+                  <LoadingList />
+                </>
+              )}
+
+              {isError && !hasArticles && (
                 <div className="rounded-xl border border-border bg-muted/40 p-4 text-sm">
-                  <p className="font-medium">Something went wrong.</p>
+                  <p className="font-medium">Couldn't load the feed.</p>
                   <p className="mt-1 text-muted-foreground">{errorMsg}</p>
                   <button
                     onClick={() => refetch()}
@@ -383,293 +270,104 @@ const Index = () => {
                 </div>
               )}
 
-              {isFeedReady && articles.length === 0 && (
-                <div className="rounded-xl border border-dashed border-border p-10 text-center">
-                  <p className="text-base font-medium">No articles found.</p>
-                </div>
-              )}
+              {!isPending && !isError && !hasArticles && <EmptyState title="No articles found." />}
 
-              {isFeedReady && articles.length > 0 && searchFilteredFeed.length === 0 && (
+              {hasArticles && searchedFeed.length === 0 && isSearching && (
                 <NoSearchResults query={debouncedQuery} onClear={() => setSearchInput("")} />
               )}
-
-              {isFeedReady &&
-                searchFilteredFeed.length > 0 &&
-                filteredFeed.length === 0 &&
-                isReadFiltering && (
-                  <NoReadFilterResults filter={readFilter} onClear={() => { setReadFilter("all"); setFilterChip("all"); }} />
-                )}
-
-              {isFeedReady && filteredFeed.length > 0 && (
-                <ArticleList
-                  items={filteredFeed}
-                  isBookmarked={isBookmarked}
-                  isRead={isRead}
-                  onToggleBookmark={toggleBookmark}
-                  onOpenArticle={handleOpenArticle}
+              {hasArticles && visibleFeed.length === 0 && !(isSearching && searchedFeed.length === 0) && (
+                <EmptyState
+                  title="Nothing matches these filters."
+                  description="Try another category or show read articles too."
+                  actionLabel="Clear filters"
+                  onAction={clearFilters}
                 />
               )}
+
+              {visibleFeed.length > 0 && <ArticleList items={visibleFeed} {...listProps} />}
             </>
           )}
 
           {tab === "saved" && (
             <>
               {count === 0 && (
-                <div className="rounded-xl border border-dashed border-border p-10 text-center">
-                  <p className="text-base font-medium">No saved articles yet.</p>
-                  <p className="mt-2 text-sm text-muted-foreground">
-                    Tap the bookmark icon on any article in your feed to save it here.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => setTab("feed")}
-                    className="mt-4 rounded-full border border-border bg-background px-4 py-1.5 text-xs font-medium transition hover:bg-muted"
-                  >
-                    Browse feed
-                  </button>
-                </div>
-              )}
-
-              {count > 0 && searchFilteredSaved.length === 0 && (
-                <NoSearchResults query={debouncedQuery} onClear={() => setSearchInput("")} />
-              )}
-
-              {count > 0 &&
-                searchFilteredSaved.length > 0 &&
-                filteredSaved.length === 0 &&
-                isReadFiltering && (
-                  <NoReadFilterResults filter={readFilter} onClear={() => { setReadFilter("all"); setFilterChip("all"); }} />
-                )}
-
-              {count > 0 && filteredSaved.length > 0 && (
-                <ArticleList
-                  items={filteredSaved}
-                  isBookmarked={isBookmarked}
-                  isRead={isRead}
-                  onToggleBookmark={toggleBookmark}
-                  onOpenArticle={handleOpenArticle}
-                  showSavedAt
+                <EmptyState
+                  title="No saved articles yet."
+                  description="Tap the bookmark icon on any article to keep it here."
+                  actionLabel="Browse feed"
+                  onAction={() => setTab("feed")}
                 />
               )}
+              {count > 0 && searchedSaved.length === 0 && isSearching && (
+                <NoSearchResults query={debouncedQuery} onClear={() => setSearchInput("")} />
+              )}
+              {count > 0 && visibleSaved.length === 0 && !(isSearching && searchedSaved.length === 0) && (
+                <EmptyState
+                  title="Nothing matches these filters."
+                  actionLabel="Clear filters"
+                  onAction={clearFilters}
+                />
+              )}
+              {visibleSaved.length > 0 && <ArticleList items={visibleSaved} showSavedAt {...listProps} />}
             </>
           )}
 
-          {tab === "preferences" && (
-            <div className="space-y-6">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between border-b border-border pb-4 gap-3">
-                <div>
-                  <h2 className="text-xl font-semibold tracking-tight">Topic Preferences</h2>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Toggle categories to personalize your feed. Unchecked topics are filtered out.
-                  </p>
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => {
-                      const updated = { ...topicPrefs };
-                      for (const k of TOPIC_KEYS) {
-                        updated[k] = true;
-                      }
-                      setTopicPrefs(updated);
-                      savePreferences(updated);
-                    }}
-                    className="rounded-full border border-border bg-background px-3 py-1 text-[11px] font-medium transition hover:bg-muted"
-                  >
-                    Select All
-                  </button>
-                  <button
-                    onClick={() => {
-                      const updated = { ...topicPrefs };
-                      for (const k of TOPIC_KEYS) {
-                        updated[k] = false;
-                      }
-                      setTopicPrefs(updated);
-                      savePreferences(updated);
-                    }}
-                    className="rounded-full border border-border bg-background px-3 py-1 text-[11px] font-medium transition hover:bg-muted"
-                  >
-                    Clear All
-                  </button>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {TOPIC_KEYS.map((key) => {
-                  const enabled = topicPrefs[key];
-                  return (
-                    <button
-                      key={key}
-                      onClick={() => handleTogglePreference(key)}
-                      className={`flex items-center justify-between p-3.5 rounded-lg border text-left transition select-none ${
-                        enabled
-                          ? "bg-foreground/5 border-foreground text-foreground"
-                          : "bg-background border-border text-muted-foreground hover:bg-muted/20"
-                      }`}
-                    >
-                      <span className="text-sm font-medium">
-                        {TOPICS[key]}
-                      </span>
-                      <span
-                        className={`h-4 w-4 rounded-full border flex items-center justify-center text-[9px] font-bold shrink-0 ${
-                          enabled
-                            ? "bg-foreground border-foreground text-background"
-                            : "border-muted-foreground text-transparent"
-                        }`}
-                      >
-                        ✓
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
+          {tab === "preferences" && <PreferencesPanel prefs={topicPrefs} onChange={handlePrefsChange} />}
 
           {tab === "stats" && (
-            <div className="space-y-6">
-              <div className="border-b border-border pb-4">
-                <h2 className="text-xl font-semibold tracking-tight">Reading Stats</h2>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Summary of your engagement metrics and read status.
-                </p>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="rounded-xl border border-border p-4 bg-muted/10">
-                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">Available</p>
-                  <p className="text-2xl font-bold mt-1">{stats.articlesAvailable}</p>
-                </div>
-                <div className="rounded-xl border border-border p-4 bg-muted/10">
-                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">Read</p>
-                  <p className="text-2xl font-bold mt-1 text-foreground">{stats.articlesRead}</p>
-                </div>
-                <div className="rounded-xl border border-border p-4 bg-muted/10">
-                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">Unread</p>
-                  <p className="text-2xl font-bold mt-1">{stats.articlesUnread}</p>
-                </div>
-                <div className="rounded-xl border border-border p-4 bg-muted/10">
-                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">Saved</p>
-                  <p className="text-2xl font-bold mt-1 text-foreground">{stats.savedArticlesCount}</p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="rounded-xl border border-border p-4 bg-muted/10">
-                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">Read Today</p>
-                  <p className="text-lg font-semibold mt-1">🔥 {stats.todayReadingCount} article{stats.todayReadingCount === 1 ? "" : "s"}</p>
-                </div>
-                <div className="rounded-xl border border-border p-4 bg-muted/10">
-                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">Top Source</p>
-                  <p className="text-lg font-semibold mt-1 truncate">📰 {stats.topSource}</p>
-                </div>
-                <div className="rounded-xl border border-border p-4 bg-muted/10 sm:col-span-2">
-                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">Top Topic</p>
-                  <p className="text-lg font-semibold mt-1 capitalize">💡 {stats.topTopic.replace(/_/g, " ")}</p>
-                </div>
-              </div>
-
-              <div className="text-[11px] text-muted-foreground flex justify-between items-center bg-muted/5 p-3 rounded-lg border border-border">
-                <span>Last query update:</span>
-                <span className="font-mono">{dataUpdatedAt ? new Date(dataUpdatedAt).toLocaleTimeString() : "Never"}</span>
-              </div>
-            </div>
+            <StatsPanel
+              stats={stats}
+              readHistoryCount={readEntries.length}
+              dataUpdatedAt={isPlaceholderData ? undefined : dataUpdatedAt}
+              onClearHistory={clearHistory}
+            />
           )}
         </main>
 
         <footer className="safe-bottom border-t border-border pt-6 text-[11px] uppercase tracking-widest text-muted-foreground">
-          DailyD · Curated Developer News Platform
+          DailyD · Developer & tech news
         </footer>
       </div>
     </div>
   );
 };
 
-type ArticleListProps = {
-  items: Article[];
-  isBookmarked: (url: string) => boolean;
-  isRead: (url: string) => boolean;
-  onToggleBookmark: (article: Article) => void;
-  onOpenArticle: (article: Article) => void;
-  showSavedAt?: boolean;
-};
-
-function ArticleList({
-  items,
-  isBookmarked,
-  isRead,
-  onToggleBookmark,
-  onOpenArticle,
-  showSavedAt,
-}: ArticleListProps) {
-  return (
-    <ul className="divide-y divide-border">
-      {items.map((a) => (
-        <ArticleCard
-          key={a.url}
-          article={a}
-          bookmarked={isBookmarked(a.url)}
-          read={isRead(a.url)}
-          savedAt={showSavedAt ? (a as BookmarkedArticle).savedAt : undefined}
-          onToggleBookmark={onToggleBookmark}
-          onOpenArticle={onOpenArticle}
-        />
-      ))}
-    </ul>
-  );
-}
-
-function NoReadFilterResults({
-  filter,
-  onClear,
+function Notice({
+  children,
+  action,
 }: {
-  filter: ReadFilter;
-  onClear: () => void;
+  children: React.ReactNode;
+  action?: { label: string; onClick: () => void };
 }) {
-  const label = filter === "read" ? "read" : "unread";
   return (
-    <div className="rounded-xl border border-dashed border-border p-10 text-center">
-      <p className="text-base font-medium">No matches found for active filters.</p>
-      <p className="mt-2 text-sm text-muted-foreground">
-        Try clearing category chips or read status constraints.
-      </p>
-      <button
-        type="button"
-        onClick={onClear}
-        className="mt-4 rounded-full border border-border bg-background px-4 py-1.5 text-xs font-medium transition hover:bg-muted"
-      >
-        Clear filters
-      </button>
+    <div
+      role="status"
+      className="mb-4 flex items-center justify-between gap-3 rounded-lg border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground"
+    >
+      <span>{children}</span>
+      {action && (
+        <button onClick={action.onClick} className="shrink-0 font-medium text-foreground underline underline-offset-2">
+          {action.label}
+        </button>
+      )}
     </div>
   );
 }
 
-function NoSearchResults({
-  query,
-  onClear,
-}: {
-  query: string;
-  onClear: () => void;
-}) {
+function NoSearchResults({ query, onClear }: { query: string; onClear: () => void }) {
   return (
-    <div className="rounded-xl border border-dashed border-border p-10 text-center">
-      <p className="text-base font-medium">No results found.</p>
-      <p className="mt-2 text-sm text-muted-foreground">
-        Nothing matched &ldquo;{query.trim()}&rdquo;. Try a different keyword.
-      </p>
-      <button
-        type="button"
-        onClick={onClear}
-        className="mt-4 rounded-full border border-border bg-background px-4 py-1.5 text-xs font-medium transition hover:bg-muted"
-      >
-        Clear search
-      </button>
-    </div>
+    <EmptyState
+      title="No results found."
+      description={`Nothing matched “${query.trim()}”. Try a different keyword.`}
+      actionLabel="Clear search"
+      onAction={onClear}
+    />
   );
 }
 
 const LoadingList = () => (
-  <ul className="divide-y divide-border">
-    {Array.from({ length: 5 }).map((_, i) => (
+  <ul className="divide-y divide-border" aria-busy="true" aria-label="Loading articles">
+    {Array.from({ length: 6 }).map((_, i) => (
       <li key={i} className="py-5">
         <div className="h-5 w-3/4 animate-pulse rounded bg-muted" />
         <div className="mt-3 h-3 w-1/3 animate-pulse rounded bg-muted" />

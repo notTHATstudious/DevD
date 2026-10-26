@@ -2,8 +2,9 @@ import logging
 import asyncio
 import re
 import html
+import time
 from typing import List, Dict, Any
-from urllib.parse import urlparse
+from urllib.parse import urlparse, parse_qsl, urlencode
 
 import httpx
 from app.adapters.rss.rss_adapter import RSSAdapter
@@ -21,6 +22,22 @@ BLOCKED_SCHEME_PREFIXES = (
     "mailto:",
     "tel:",
 )
+
+# Many feeds (Reddit, Medium, Cloudflare-fronted blogs) reject httpx's default UA.
+USER_AGENT = "Mozilla/5.0 (compatible; DailyDBot/3.2; +https://dailyd.app)"
+
+# How many feeds to fetch at once. ~150 sources at once trips rate limits.
+MAX_CONCURRENT_FETCHES = 24
+
+# Keep the payload small: the newest N items per source, and N overall.
+MAX_ARTICLES_PER_SOURCE_FEED = 25
+MAX_TOTAL_ARTICLES = 1500
+MAX_DESCRIPTION_CHARS = 300
+
+# Anything dated further than this into the future is a broken feed timestamp.
+MAX_FUTURE_SKEW_MS = 24 * 60 * 60 * 1000
+
+TRACKING_PARAM_PREFIXES = ("utm_", "mc_", "fbclid", "gclid", "ref", "source", "cmpid")
 
 # Topic Regex Map matching src/lib/preferences.ts
 TOPIC_REGEX_MAP = {
@@ -51,7 +68,15 @@ TOPIC_REGEX_MAP = {
     "performance": re.compile(r"\b(performance|latency|concurrency|async|threads?|throughput|profiling|optimization)\b", re.IGNORECASE),
     "testing": re.compile(r"\b(testing|unit[- ]?tests?|integration[- ]?tests?|tdd|mocking|vitest|junit)\b", re.IGNORECASE),
     "cloud_native": re.compile(r"\b(cloud[- ]?native|cncf|serverless|envoy|istio)\b", re.IGNORECASE),
+    # ---------- Big tech & gadgets ----------
+    "apple": re.compile(r"\b(apple|iphones?|ipad|ipados|macbook|imac|mac\s?os|macos|ios\s?\d*|watchos|visionos|vision\s+pro|airpods|wwdc|swiftui|xcode)\b", re.IGNORECASE),
+    "android": re.compile(r"\b(android|pixel\s?\d*|one\s?ui|wear\s?os|jetpack\s+compose|kotlin)\b", re.IGNORECASE),
+    "smartphones": re.compile(r"\b(smartphones?|phones?|iphones?|galaxy\s+[szaf]\d*|pixel\s?\d+|oneplus|xiaomi|oppo|vivo|foldables?|snapdragon)\b", re.IGNORECASE),
+    "laptops": re.compile(r"\b(laptops?|macbook|chromebooks?|thinkpad|surface\s+(pro|laptop)|xps|zenbook|copilot\+\s?pc|ultrabook)\b", re.IGNORECASE),
+    "chips_hardware": re.compile(r"\b(cpus?|gpus?|chips?|silicon|semiconductors?|nvidia|amd|intel|qualcomm|arm|tsmc|rtx\s?\d+|ryzen|m[1-9]\s+(pro|max|ultra|chip))\b", re.IGNORECASE),
+    "big_tech": re.compile(r"\b(apple|google|alphabet|microsoft|meta|amazon|nvidia|samsung|tesla|netflix)\b", re.IGNORECASE),
 }
+
 
 def strip_html(html_content: str) -> str:
     if not html_content:
@@ -63,6 +88,14 @@ def strip_html(html_content: str) -> str:
     # Normalize whitespaces
     text = re.sub(r"\s+", " ", text)
     return text.strip()
+
+
+def truncate(text: str, limit: int) -> str:
+    if len(text) <= limit:
+        return text
+    cut = text[:limit].rsplit(" ", 1)[0]
+    return cut.rstrip(" ,.;:-") + "…"
+
 
 def is_valid_article_url(url: str) -> bool:
     trimmed = url.strip()
@@ -83,13 +116,33 @@ def is_valid_article_url(url: str) -> bool:
     except Exception:
         return False
 
+
+def normalize_url_key(url: str) -> str:
+    """
+    Stable dedupe key. Host is case-insensitive, path is not (many CMSs are
+    case-sensitive). Tracking params are dropped but meaningful ones such as
+    WordPress `?p=123` are kept, so distinct posts don't collapse into one.
+    """
+    parsed = urlparse(url.strip())
+    query = [
+        (k, v) for k, v in parse_qsl(parsed.query, keep_blank_values=True)
+        if not k.lower().startswith(TRACKING_PARAM_PREFIXES)
+    ]
+    path = parsed.path.rstrip("/") or "/"
+    key = f"{parsed.netloc.lower().removeprefix('www.')}{path}"
+    if query:
+        key += "?" + urlencode(sorted(query))
+    return key
+
+
 def get_matched_topics(title: str, description: str) -> List[str]:
-    text = f"{title} {description}".lower()
+    text = f"{title} {description}"
     matched = []
     for key, pattern in TOPIC_REGEX_MAP.items():
         if pattern.search(text):
             matched.append(key)
     return matched
+
 
 class FeedService:
     def __init__(self, rss_adapter: RSSAdapter):
@@ -99,33 +152,49 @@ class FeedService:
         """
         Orchestrates fetching all sources, normalizes articles, and processes them.
         """
-        async with httpx.AsyncClient() as client:
-            tasks = [
-                self.rss_adapter.fetch_feed(client, source["name"], source["url"])
-                for source in FEED_SOURCES
-            ]
-            results = await asyncio.gather(*tasks, return_exceptions=True)
+        semaphore = asyncio.Semaphore(MAX_CONCURRENT_FETCHES)
 
+        async def fetch(client: httpx.AsyncClient, source: Dict[str, Any]):
+            async with semaphore:
+                return await self.rss_adapter.fetch_feed(client, source["name"], source["url"])
+
+        async with httpx.AsyncClient(
+            follow_redirects=True,
+            headers={
+                "User-Agent": USER_AGENT,
+                "Accept": "application/rss+xml, application/atom+xml, application/xml;q=0.9, */*;q=0.8",
+            },
+            limits=httpx.Limits(max_connections=MAX_CONCURRENT_FETCHES),
+        ) as client:
+            results = await asyncio.gather(
+                *(fetch(client, source) for source in FEED_SOURCES),
+                return_exceptions=True,
+            )
+
+        now_ms = int(time.time() * 1000)
         all_articles = []
         for source, feed_result in zip(FEED_SOURCES, results):
             if isinstance(feed_result, Exception):
                 logger.warning(f"Error fetching feed {source['name']}: {feed_result}")
                 continue
-            
+
+            kept = 0
             for item in feed_result:
+                if kept >= MAX_ARTICLES_PER_SOURCE_FEED:
+                    break
                 title = strip_html(item.get("title") or "")
                 url = (item.get("url") or "").strip()
                 if not title or not url or not is_valid_article_url(url):
                     continue
 
                 published_at = item.get("publishedAt")
-                if published_at is None:
+                if published_at is None or published_at > now_ms + MAX_FUTURE_SKEW_MS:
                     continue
 
-                description = strip_html(item.get("description") or "")[:400]
+                description = truncate(strip_html(item.get("description") or ""), MAX_DESCRIPTION_CHARS)
                 author = item.get("author")
                 if author:
-                    author = author.strip() or None
+                    author = strip_html(author) or None
 
                 topics = get_matched_topics(title, description)
 
@@ -142,18 +211,20 @@ class FeedService:
                     "isCommunity": source.get("is_community"),
                     "isNews": source.get("is_news"),
                 })
+                kept += 1
 
-        # Deduplicate and sort
+        # Newest first, so dedupe keeps the most recent copy of a story.
+        all_articles.sort(key=lambda x: x["publishedAt"], reverse=True)
+
         seen_keys = set()
         deduped_articles = []
         for a in all_articles:
-            # key = URL path without query params or trailing slash, lowercased
-            clean_url = a["url"].split("?")[0].rstrip("/").lower()
-            if clean_url in seen_keys:
+            key = normalize_url_key(a["url"])
+            if key in seen_keys:
                 continue
-            seen_keys.add(clean_url)
+            seen_keys.add(key)
             deduped_articles.append(a)
+            if len(deduped_articles) >= MAX_TOTAL_ARTICLES:
+                break
 
-        # Sort by publishedAt descending
-        deduped_articles.sort(key=lambda x: x["publishedAt"], reverse=True)
         return deduped_articles

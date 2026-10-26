@@ -1,31 +1,28 @@
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useSyncExternalStore } from "react";
 import type { Article } from "@/lib/feed";
 import {
-  getBookmarks,
+  bookmarkStore,
   normalizeArticleUrl,
   toggleBookmark as toggleStored,
-  type BookmarkedArticle,
 } from "@/lib/bookmarks";
 
-export function useBookmarks(username: string) {
-  const [bookmarks, setBookmarks] = useState<BookmarkedArticle[]>(() =>
-    getBookmarks(username),
-  );
+/** Bookmarks shared by every component (feed, Saved tab, assistant). */
+export function useBookmarks() {
+  const bookmarks = useSyncExternalStore(bookmarkStore.subscribe, bookmarkStore.get);
 
-  const isBookmarked = useCallback(
-    (url: string) => {
-      const key = normalizeArticleUrl(url);
-      return bookmarks.some((b) => normalizeArticleUrl(b.url) === key);
-    },
+  const keys = useMemo(
+    () => new Set(bookmarks.map((b) => normalizeArticleUrl(b.url))),
     [bookmarks],
   );
 
-  const toggleBookmark = useCallback(
-    (article: Article) => {
-      setBookmarks(toggleStored(username, article));
-    },
-    [username],
+  const isBookmarked = useCallback(
+    (url: string) => keys.has(normalizeArticleUrl(url)),
+    [keys],
   );
+
+  const toggleBookmark = useCallback((article: Article) => {
+    toggleStored(article);
+  }, []);
 
   return {
     bookmarks,

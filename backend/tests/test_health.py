@@ -17,5 +17,5 @@ def test_health_check_endpoint(client: TestClient) -> None:
     data = response.json()
     assert data == {
         "status": "healthy",
-        "version": "2.0"
+        "version": "3.2"
     }

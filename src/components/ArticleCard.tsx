@@ -1,3 +1,4 @@
+import { forwardRef, type CSSProperties } from "react";
 import { Bookmark, Share2 } from "lucide-react";
 import { isValidArticleUrl } from "@/lib/articleUrl";
 import { formatRelativeTime, type Article } from "@/lib/feed";
@@ -11,16 +12,24 @@ type Props = {
   onOpenArticle?: (article: Article) => void;
   /** Shown on saved tab — when the article was bookmarked */
   savedAt?: number;
+  /** Set by the virtualized list to position and measure the card. */
+  style?: CSSProperties;
+  "data-index"?: number;
 };
 
-export default function ArticleCard({
-  article,
-  bookmarked,
-  read,
-  onToggleBookmark,
-  onOpenArticle,
-  savedAt,
-}: Props) {
+const ArticleCard = forwardRef<HTMLLIElement, Props>(function ArticleCard(
+  {
+    article,
+    bookmarked,
+    read,
+    onToggleBookmark,
+    onOpenArticle,
+    savedAt,
+    style,
+    "data-index": dataIndex,
+  },
+  ref,
+) {
   const safeUrl = isValidArticleUrl(article.url) ? article.url.trim() : null;
 
   const handleOpen = () => {
@@ -69,7 +78,7 @@ export default function ArticleCard({
   };
 
   return (
-    <li className={`py-5 ${read ? "opacity-75" : ""}`}>
+    <li ref={ref} style={style} data-index={dataIndex} className={`py-5 ${read ? "opacity-75" : ""}`}>
       <div className="flex items-start gap-3">
         <div className="min-w-0 flex-1">
           <div className="flex items-start gap-2">
@@ -194,4 +203,6 @@ export default function ArticleCard({
       </div>
     </li>
   );
-}
+});
+
+export default ArticleCard;

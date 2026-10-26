@@ -1,92 +1,109 @@
-import { isValidArticleUrl } from "@/lib/articleUrl";
-import { normalizeArticleUrl } from "@/lib/bookmarks";
+import { isValidArticleUrl, normalizeArticleUrl } from "@/lib/articleUrl";
+import { createLocalStore, readJson, removeKeys } from "@/lib/localStore";
 
 export { normalizeArticleUrl };
 
-export type ReadEntry = { url: string; readAt: number };
+/** `key` is the normalized article URL (see normalizeArticleUrl). */
+export type ReadEntry = { key: string; readAt: number };
 
-const READ_STATE_KEY = "dailyd_read_state";
+export const READ_STATE_KEY = "dailyd_read_v2";
+/** v1 stored `{ [username]: {url, readAt}[] }` behind the old local login. */
+export const LEGACY_READ_STATE_KEY = "dailyd_read_state";
 
-type ReadStore = Record<string, ReadEntry[]>;
+/** Keep read history small: the newest N entries, and nothing older than this. */
+export const MAX_READ_ENTRIES = 1000;
+export const READ_HISTORY_MAX_AGE_MS = 90 * 24 * 60 * 60 * 1000;
 
-function readStore(): ReadStore {
-  try {
-    const raw = localStorage.getItem(READ_STATE_KEY);
-    if (!raw) return {};
-    const parsed: unknown = JSON.parse(raw);
-    if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
-      return {};
-    }
-    return parsed as ReadStore;
-  } catch {
-    return {};
-  }
-}
+/** Stored compactly as [key, readAt] pairs, newest first. */
+type StoredEntry = [string, number];
 
-function writeStore(store: ReadStore): void {
-  localStorage.setItem(READ_STATE_KEY, JSON.stringify(store));
-}
-
-function userKey(username: string): string {
-  return username.trim().toLowerCase();
-}
-
-function sanitizeList(list: unknown): ReadEntry[] {
+function sanitize(list: unknown, now = Date.now()): ReadEntry[] {
   if (!Array.isArray(list)) return [];
   const seen = new Set<string>();
   const out: ReadEntry[] = [];
   for (const item of list) {
-    if (!item || typeof item !== "object") continue;
-    const entry = item as Partial<ReadEntry>;
-    if (typeof entry.url !== "string") continue;
-    if (!isValidArticleUrl(entry.url)) continue;
-    const key = normalizeArticleUrl(entry.url);
+    let key: unknown;
+    let readAt: unknown;
+    if (Array.isArray(item)) [key, readAt] = item;
+    else if (item && typeof item === "object") {
+      // v1 entry: { url, readAt }
+      const legacy = item as { url?: unknown; readAt?: unknown };
+      if (typeof legacy.url !== "string" || !isValidArticleUrl(legacy.url)) continue;
+      key = normalizeArticleUrl(legacy.url);
+      readAt = legacy.readAt;
+    }
+    if (typeof key !== "string" || !key) continue;
+    const at = typeof readAt === "number" ? readAt : now;
+    if (now - at > READ_HISTORY_MAX_AGE_MS) continue;
     if (seen.has(key)) continue;
     seen.add(key);
-    out.push({
-      url: entry.url,
-      readAt: typeof entry.readAt === "number" ? entry.readAt : Date.now(),
-    });
+    out.push({ key, readAt: at });
   }
   out.sort((a, b) => b.readAt - a.readAt);
-  return out;
+  return out.slice(0, MAX_READ_ENTRIES);
 }
 
-export function getReadEntries(username: string): ReadEntry[] {
-  const store = readStore();
-  return sanitizeList(store[userKey(username)]);
+function migrateLegacy(): StoredEntry[] | null {
+  const legacy = readJson(LEGACY_READ_STATE_KEY);
+  if (legacy === null) return null;
+  removeKeys([LEGACY_READ_STATE_KEY]);
+  const list = Array.isArray(legacy)
+    ? legacy
+    : typeof legacy === "object"
+      ? Object.values(legacy as Record<string, unknown>).flat()
+      : [];
+  return sanitize(list).map((e) => [e.key, e.readAt]);
 }
 
-export function isArticleRead(username: string, url: string): boolean {
-  const key = normalizeArticleUrl(url);
-  return getReadEntries(username).some((e) => normalizeArticleUrl(e.url) === key);
-}
+const store = createLocalStore<StoredEntry[]>({
+  key: READ_STATE_KEY,
+  parse: (raw) => sanitize(raw).map((e) => [e.key, e.readAt]),
+  migrate: migrateLegacy,
+});
 
-export function markArticleRead(username: string, url: string): ReadEntry[] {
-  const u = userKey(username);
-  const store = readStore();
-  const list = sanitizeList(store[u]);
-  if (!isValidArticleUrl(url)) return list;
+let cachedSource: StoredEntry[] | null = null;
+let cachedEntries: ReadEntry[] = [];
 
-  const key = normalizeArticleUrl(url);
-  if (list.some((e) => normalizeArticleUrl(e.url) === key)) {
-    return list;
+/** Snapshot of read entries; the same array is returned until something changes. */
+export function getReadEntries(): ReadEntry[] {
+  const raw = store.get();
+  if (raw !== cachedSource) {
+    cachedSource = raw;
+    cachedEntries = raw.map(([key, readAt]) => ({ key, readAt }));
   }
-
-  const next: ReadEntry[] = [{ url: url.trim(), readAt: Date.now() }, ...list];
-  store[u] = next;
-  writeStore(store);
-  return next;
+  return cachedEntries;
 }
 
-export function removeReadState(username: string, url: string): ReadEntry[] {
-  const u = userKey(username);
-  const store = readStore();
+export const readStateStore = {
+  subscribe: store.subscribe,
+  getSnapshot: getReadEntries,
+  reset: () => {
+    store.reset();
+    cachedSource = null;
+  },
+};
+
+export function isArticleRead(url: string): boolean {
   const key = normalizeArticleUrl(url);
-  const next = sanitizeList(store[u]).filter((e) => normalizeArticleUrl(e.url) !== key);
-  store[u] = next;
-  writeStore(store);
-  return next;
+  return getReadEntries().some((e) => e.key === key);
+}
+
+export function markArticleRead(url: string): ReadEntry[] {
+  if (!isValidArticleUrl(url) || isArticleRead(url)) return getReadEntries();
+  const entry: StoredEntry = [normalizeArticleUrl(url), Date.now()];
+  const next = [entry, ...store.get()].slice(0, MAX_READ_ENTRIES);
+  store.set(next);
+  return getReadEntries();
+}
+
+export function removeReadState(url: string): ReadEntry[] {
+  const key = normalizeArticleUrl(url);
+  store.set(store.get().filter(([k]) => k !== key));
+  return getReadEntries();
+}
+
+export function clearReadHistory(): void {
+  store.set([]);
 }
 
 export type ReadFilter = "all" | "read" | "unread";

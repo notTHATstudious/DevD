@@ -53,6 +53,14 @@ describe("calculateArticleScore", () => {
     expect(score).toBe(5);
   });
 
+  it("subtracts points for articles older than a week and a month", () => {
+    const now = Date.now();
+    const week = { ...baseArticle, publishedAt: now - 10 * 24 * 60 * 60 * 1000 };
+    const month = { ...baseArticle, publishedAt: now - 40 * 24 * 60 * 60 * 1000 };
+    expect(calculateArticleScore(week, ["java"], now)).toBe(-6);
+    expect(calculateArticleScore(month, ["java"], now)).toBe(-12);
+  });
+
   it("adds +4 for matches in title and +2 for matches in description", () => {
     const art = {
       ...baseArticle,

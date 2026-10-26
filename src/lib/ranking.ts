@@ -1,5 +1,7 @@
 import type { Article } from "@/lib/feed";
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+
 const REPUTABLE_AUTHORS = [
   "martin fowler",
   "vlad mihalcea",
@@ -20,6 +22,8 @@ const REPUTABLE_AUTHORS = [
  * - InfoQ domain: +8
  * - Author reputation: +5
  * - Recent (<24h): +5
+ * - Older than a week: -6, older than a month: -12 (so stale "official" posts
+ *   don't sit above today's news forever)
  * - Matches active topics in Title: +4 per topic match
  * - Matches active topics in Description: +2 per topic match
  */
@@ -62,8 +66,12 @@ export function calculateArticleScore(
 
   // 6. Recency check (<24h)
   const ageMs = now - article.publishedAt;
-  if (ageMs > 0 && ageMs < 24 * 60 * 60 * 1000) {
+  if (ageMs > 0 && ageMs < DAY_MS) {
     score += 5;
+  } else if (ageMs > 30 * DAY_MS) {
+    score -= 12;
+  } else if (ageMs > 7 * DAY_MS) {
+    score -= 6;
   }
 
   // 7. Title / Description keyword match boosts

@@ -1,3 +1,8 @@
+import os
+
+# Keep tests offline: don't start the background feed refresh on app startup.
+os.environ.setdefault("BACKGROUND_REFRESH", "false")
+
 import pytest
 from typing import Generator
 from fastapi.testclient import TestClient

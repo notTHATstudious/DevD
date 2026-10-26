@@ -1,5 +1,5 @@
 import type { Article } from "@/lib/feed";
-import type { ReadEntry } from "@/lib/readState";
+import { normalizeArticleUrl, type ReadEntry } from "@/lib/readState";
 
 export interface ReadingStats {
   articlesAvailable: number;
@@ -18,13 +18,13 @@ export function calculateReadingStats(
   bookmarksCount: number,
   now = Date.now()
 ): ReadingStats {
-  const readUrls = new Set(readEntries.map((e) => e.url.toLowerCase()));
+  const readKeys = new Set(readEntries.map((e) => e.key));
 
   // 1. Available, Read, Unread counts for the active feed
   const articlesAvailable = filteredArticles.length;
   let articlesRead = 0;
   for (const art of filteredArticles) {
-    if (readUrls.has(art.url.toLowerCase())) {
+    if (readKeys.has(normalizeArticleUrl(art.url))) {
       articlesRead++;
     }
   }
@@ -49,11 +49,11 @@ export function calculateReadingStats(
   // Build a lookup map of url -> article
   const articleMap = new Map<string, Article>();
   for (const art of filteredArticles) {
-    articleMap.set(art.url.toLowerCase(), art);
+    articleMap.set(normalizeArticleUrl(art.url), art);
   }
 
   for (const entry of readEntries) {
-    const art = articleMap.get(entry.url.toLowerCase());
+    const art = articleMap.get(entry.key);
     if (art) {
       // Count topics
       const topics = art.topics || [];

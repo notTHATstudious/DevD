@@ -29,8 +29,8 @@ cd backend
 python -m venv venv
 source venv/bin/activate  # On Windows use: venv\Scripts\activate
 
-# Install dependencies
-pip install -r requirements.txt
+# Install dependencies (runtime + test tools)
+pip install -r requirements-dev.txt
 
 # Start the application locally
 uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
@@ -50,6 +50,26 @@ docker compose up --build
 ### API Endpoints
 - **Service Information**: [http://127.0.0.1:8000/](http://127.0.0.1:8000/)
 - **Health Check**: [http://127.0.0.1:8000/health](http://127.0.0.1:8000/health)
+
+### Configuration
+| Variable | Default | Purpose |
+|---|---|---|
+| `CORS_ORIGINS` | `["*"]` | Allowed frontend origins (JSON list or comma-separated) |
+| `CACHE_REFRESH_SECONDS` | `300` | How often all feeds are re-fetched |
+| `BACKGROUND_REFRESH` | `true` | Set `false` to skip feed fetching (tests) |
+| `DEBUG` | `false` | Verbose logging |
+
+`GET /api/v1/articles` is served from memory as pre-gzipped JSON with an `ETag`,
+so warm requests take ~1 ms. After a cold start the first request waits (up to
+25 s) for the initial fetch, then returns `503` with `Retry-After` if it is
+still not ready.
+
+`POST /api/v1/devd-assistant/search` (`{"query", "limit", "offset"}`) searches an
+index rebuilt on every refresh (`app/services/search_service.py`): BM25 over
+title/topics/source/description, whole-word matching with light stemming, tech
+synonyms (k8s → kubernetes), typo correction, a recency boost, and filters
+parsed from the query ("today", "this week", "official", "tutorials", "news").
+Responses include `total`, `didYouMean`, `suggestions` and `partial`.
 
 ### Running Tests
 Execute the unit tests locally:

@@ -25,7 +25,13 @@ export const TOPICS = {
   security: "Security",
   performance: "Performance",
   testing: "Testing",
-  cloud_native: "Cloud Native"
+  cloud_native: "Cloud Native",
+  apple: "Apple",
+  android: "Android",
+  smartphones: "Smartphones",
+  laptops: "Laptops",
+  chips_hardware: "Chips & Hardware",
+  big_tech: "Big Tech",
 } as const;
 
 export type TopicKey = keyof typeof TOPICS;
@@ -33,6 +39,28 @@ export type TopicKey = keyof typeof TOPICS;
 export type TopicPreferences = Record<TopicKey, boolean>;
 
 export const TOPIC_KEYS = Object.keys(TOPICS) as TopicKey[];
+
+/** Sections for the Topics screen. */
+export const TOPIC_GROUPS: { label: string; keys: TopicKey[] }[] = [
+  {
+    label: "Backend & Java",
+    keys: ["java", "spring_boot", "spring_cloud", "kafka", "microservices", "backend_engineering"],
+  },
+  { label: "Data", keys: ["databases", "postgresql", "mongodb", "redis"] },
+  {
+    label: "Cloud & DevOps",
+    keys: ["docker", "kubernetes", "aws", "azure", "gcp", "devops", "ci_cd", "cloud_native"],
+  },
+  { label: "AI", keys: ["ai_engineering", "llms", "openai", "anthropic"] },
+  {
+    label: "Engineering practice",
+    keys: ["system_design", "software_architecture", "security", "performance", "testing"],
+  },
+  {
+    label: "Big Tech & Gadgets",
+    keys: ["big_tech", "apple", "android", "smartphones", "laptops", "chips_hardware"],
+  },
+];
 
 const STORAGE_KEY = "dailyd_topic_preferences";
 
@@ -102,6 +130,12 @@ export const TOPIC_REGEX_MAP: Record<TopicKey, RegExp> = {
   performance: /\b(performance|latency|concurrency|async|threads?|throughput|profiling|optimization)\b/i,
   testing: /\b(testing|unit[- ]?tests?|integration[- ]?tests?|tdd|mocking|vitest|junit)\b/i,
   cloud_native: /\b(cloud[- ]?native|cncf|serverless|envoy|istio)\b/i,
+  apple: /\b(apple|iphones?|ipad|ipados|macbook|imac|mac\s?os|macos|ios\s?\d*|watchos|visionos|vision\s+pro|airpods|wwdc|swiftui|xcode)\b/i,
+  android: /\b(android|pixel\s?\d*|one\s?ui|wear\s?os|jetpack\s+compose|kotlin)\b/i,
+  smartphones: /\b(smartphones?|phones?|iphones?|galaxy\s+[szaf]\d*|pixel\s?\d+|oneplus|xiaomi|oppo|vivo|foldables?|snapdragon)\b/i,
+  laptops: /\b(laptops?|macbook|chromebooks?|thinkpad|surface\s+(pro|laptop)|xps|zenbook|copilot\+\s?pc|ultrabook)\b/i,
+  chips_hardware: /\b(cpus?|gpus?|chips?|silicon|semiconductors?|nvidia|amd|intel|qualcomm|arm|tsmc|rtx\s?\d+|ryzen|m[1-9]\s+(pro|max|ultra|chip))\b/i,
+  big_tech: /\b(apple|google|alphabet|microsoft|meta|amazon|nvidia|samsung|tesla|netflix)\b/i,
 };
 
 /** Identify matching topics for text */
@@ -117,19 +151,23 @@ export function getMatchedTopics(title: string, description: string): TopicKey[]
   return matched;
 }
 
-/** Filter articles by topic preferences. If none are enabled, show all. */
+/**
+ * Filter articles by topic preferences. If none or all are enabled, show all.
+ * Articles with no detected topic are always kept — previously they were
+ * silently hidden, which dropped roughly a third of the feed.
+ */
 export function filterByTopicPreferences<T extends { topics?: string[] }>(
   articles: T[],
   prefs: TopicPreferences,
 ): T[] {
-  const enabledKeys = TOPIC_KEYS.filter((k) => prefs[k]);
-  // If no topics are selected, default to using all topics
-  if (enabledKeys.length === 0) {
+  const enabledCount = TOPIC_KEYS.filter((k) => prefs[k]).length;
+  if (enabledCount === 0 || enabledCount === TOPIC_KEYS.length) {
     return articles;
   }
-  
+
   return articles.filter((article) => {
     const articleTopics = article.topics || [];
+    if (articleTopics.length === 0) return true;
     return articleTopics.some((topic) => prefs[topic as TopicKey]);
   });
 }

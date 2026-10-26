@@ -14,7 +14,10 @@ export type Article = {
 
 export type FeedResult = {
   articles: Article[];
+  /** True when showing the locally saved snapshot while the network loads. */
   usedFallback: boolean;
+  /** When the backend last refreshed its feeds (ms). */
+  lastUpdated?: number;
 };
 
 export function formatRelativeTime(ts: number): string {

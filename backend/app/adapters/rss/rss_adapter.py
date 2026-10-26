@@ -100,9 +100,11 @@ class RSSAdapter:
                         or self._find_child_text(entry, "content")
                         or ""
                     )
+                    # Prefer the original publish date; `updated` changes on every edit
+                    # and would push old posts back to the top of the feed.
                     pub_date_str = (
-                        self._find_child_text(entry, "updated")
-                        or self._find_child_text(entry, "published")
+                        self._find_child_text(entry, "published")
+                        or self._find_child_text(entry, "updated")
                     )
                     published_at = self._parse_date_to_ms(pub_date_str)
 
@@ -143,7 +145,10 @@ class RSSAdapter:
                         or self._find_child_text(item, "encoded")  # content:encoded
                         or ""
                     )
-                    pub_date_str = self._find_child_text(item, "pubDate")
+                    pub_date_str = (
+                        self._find_child_text(item, "pubDate")
+                        or self._find_child_text(item, "date")  # dc:date (RSS 1.0 / RDF)
+                    )
                     published_at = self._parse_date_to_ms(pub_date_str)
                     author = (
                         self._find_child_text(item, "creator")  # dc:creator

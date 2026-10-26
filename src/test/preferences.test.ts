@@ -87,4 +87,14 @@ describe("preferences.ts utilities", () => {
       expect(filterByTopicPreferences(articles, prefs)).toHaveLength(3);
     });
   });
+
+describe("untagged articles", () => {
+  it("keeps articles with no detected topic when some topics are turned off", () => {
+    const prefs = getDefaultPreferences();
+    prefs.java = false;
+    const untagged = { topics: [] as string[] };
+    const javaOnly = { topics: ["java"] };
+    expect(filterByTopicPreferences([untagged, javaOnly], prefs)).toEqual([untagged]);
+  });
+});
 });

@@ -1,20 +1,23 @@
-import { Moon, Sun, Download, LogOut, MessageSquare } from "lucide-react";
-import { Link, useLocation } from "react-router-dom";
+import { Moon, Sun, Download, RefreshCw } from "lucide-react";
+import { useState } from "react";
 import { useTheme } from "@/lib/useTheme";
 import { useInstallPrompt } from "@/lib/useInstallPrompt";
-import type { DevUser } from "@/lib/auth";
-import { useState } from "react";
+import { formatRelativeTime } from "@/lib/feed";
 
 type Props = {
-  user: DevUser;
-  onSignOut: () => void;
+  /** When the backend last refreshed its feeds. */
+  lastUpdated?: number;
+  refreshing: boolean;
+  onRefresh: () => void;
 };
 
-export default function AppHeader({ user, onSignOut }: Props) {
+const iconButton =
+  "inline-flex h-9 w-9 items-center justify-center rounded-full border border-border transition hover:bg-muted disabled:opacity-50";
+
+export default function AppHeader({ lastUpdated, refreshing, onRefresh }: Props) {
   const { theme, toggle } = useTheme();
   const { canInstall, installed, ios, promptInstall } = useInstallPrompt();
   const [showIosHint, setShowIosHint] = useState(false);
-  const location = useLocation();
 
   const handleInstall = async () => {
     if (ios && !installed) {
@@ -29,55 +32,47 @@ export default function AppHeader({ user, onSignOut }: Props) {
   return (
     <header className="sticky top-0 z-20 border-b border-border bg-background/80 backdrop-blur-md">
       <div className="safe-top" />
-      <div className="mx-auto flex max-w-2xl items-center justify-between gap-3 px-4 py-3 sm:py-4">
-        <div className="flex items-center gap-2.5 min-w-0">
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-foreground text-background font-serif text-base font-semibold">
+      <div className="mx-auto flex max-w-2xl items-center justify-between gap-3 px-4 py-3">
+        <div className="flex min-w-0 items-center gap-2.5">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-foreground font-serif text-base font-semibold text-background">
             D
           </div>
           <div className="min-w-0">
             <p className="text-sm font-semibold leading-tight tracking-tight">DailyD</p>
-            <p className="truncate text-[11px] leading-tight text-muted-foreground">
-              {user.username} · <span className="uppercase tracking-wider">{user.tag}</span>
+            <p className="truncate text-[11px] leading-tight text-muted-foreground" aria-live="polite">
+              {refreshing
+                ? "Updating…"
+                : lastUpdated
+                  ? `Updated ${formatRelativeTime(lastUpdated)}`
+                  : "Developer & tech news"}
             </p>
           </div>
         </div>
 
         <div className="flex items-center gap-1">
-
           {showInstallButton && (
             <button
               onClick={handleInstall}
               aria-label="Install app"
-              className="hidden sm:inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-3 py-1.5 text-xs font-medium transition hover:bg-muted"
+              className="inline-flex h-9 items-center gap-1.5 rounded-full border border-border bg-background px-2.5 text-xs font-medium transition hover:bg-muted sm:px-3"
             >
-              <Download className="h-3.5 w-3.5" />
-              Install
-            </button>
-          )}
-          {showInstallButton && (
-            <button
-              onClick={handleInstall}
-              aria-label="Install app"
-              className="inline-flex sm:hidden h-9 w-9 items-center justify-center rounded-full border border-border transition hover:bg-muted"
-            >
-              <Download className="h-4 w-4" />
+              <Download className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
+              <span className="hidden sm:inline">Install</span>
             </button>
           )}
 
           <button
-            onClick={toggle}
-            aria-label="Toggle theme"
-            className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-border transition hover:bg-muted"
+            onClick={onRefresh}
+            disabled={refreshing}
+            aria-label="Refresh feed"
+            title="Refresh feed"
+            className={iconButton}
           >
-            {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+            <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
           </button>
 
-          <button
-            onClick={onSignOut}
-            aria-label="Sign out"
-            className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-border transition hover:bg-muted"
-          >
-            <LogOut className="h-4 w-4" />
+          <button onClick={toggle} aria-label="Toggle theme" className={iconButton}>
+            {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
           </button>
         </div>
       </div>
@@ -86,10 +81,7 @@ export default function AppHeader({ user, onSignOut }: Props) {
         <div className="border-t border-border bg-muted/50 px-4 py-2 text-center text-[11px] text-muted-foreground">
           On iPhone: tap <span className="font-medium text-foreground">Share</span> →{" "}
           <span className="font-medium text-foreground">Add to Home Screen</span>
-          <button
-            onClick={() => setShowIosHint(false)}
-            className="ml-2 underline underline-offset-2"
-          >
+          <button onClick={() => setShowIosHint(false)} className="ml-2 underline underline-offset-2">
             dismiss
           </button>
         </div>

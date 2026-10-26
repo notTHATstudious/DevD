@@ -4,6 +4,7 @@ import asyncio
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 
 from app.api.v1.router import api_router
 from app.config import settings
@@ -14,20 +15,19 @@ from app.api.deps import get_feed_service
 
 async def cache_refresh_task():
     while True:
-        await asyncio.sleep(300) # 5 minutes
-        feed_service = get_feed_service()
-        await article_cache.refresh_cache(feed_service)
+        await article_cache.refresh_cache(get_feed_service())
+        await asyncio.sleep(settings.CACHE_REFRESH_SECONDS)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup: Warm up cache
-    feed_service = get_feed_service()
-    await article_cache.refresh_cache(feed_service)
-    # Start background task
-    task = asyncio.create_task(cache_refresh_task())
+    # Warm the cache in the background so the server accepts requests (and
+    # passes health checks) immediately instead of waiting on ~150 feeds.
+    task = None
+    if settings.BACKGROUND_REFRESH:
+        task = asyncio.create_task(cache_refresh_task())
     yield
-    # Shutdown: Cancel background task
-    task.cancel()
+    if task:
+        task.cancel()
 
 # Initialize logging before FastAPI startup
 setup_logging()
@@ -46,10 +46,17 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.CORS_ORIGINS,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    # No cookies or auth headers are used; credentials + "*" is also invalid CORS.
+    allow_credentials=False,
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["Content-Type", "If-None-Match"],
+    expose_headers=["ETag", "X-Response-Time-Ms"],
+    max_age=86400,
 )
+
+# Compress other JSON responses (e.g. assistant search). /articles is
+# pre-gzipped and already carries Content-Encoding, so it is passed through.
+app.add_middleware(GZipMiddleware, minimum_size=1024)
 
 # Logging Middleware to record execution times and route hits
 @app.middleware("http")

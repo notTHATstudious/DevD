@@ -7,8 +7,10 @@ from app.services.feed_service import (
     strip_html,
     is_valid_article_url,
     get_matched_topics,
+    normalize_url_key,
     FeedService,
 )
+from app.services.cache_service import ArticleCache
 from app.main import app
 
 # 1. Test HTML Stripping
@@ -99,7 +101,7 @@ async def test_feed_service_processing() -> None:
     mock_feed_1 = [
         {
             "title": "Dup Article",
-            "url": "https://example.com/dup?param=1",
+            "url": "https://example.com/dup?utm_source=rss",
             "description": "First instance.",
             "publishedAt": 1000,
             "author": "Author A",
@@ -130,7 +132,7 @@ async def test_feed_service_processing() -> None:
         }
     ]
 
-    mock_adapter.fetch_feed.side_effect = [mock_feed_1, mock_feed_2] + [[]] * 100
+    mock_adapter.fetch_feed.side_effect = [mock_feed_1, mock_feed_2] + [[]] * 500
 
     service = FeedService(mock_adapter)
     articles = await service.get_aggregated_feed()
@@ -149,38 +151,117 @@ async def test_feed_service_processing() -> None:
     assert "kafka" in articles[0]["topics"]
     assert "spring_boot" in articles[0]["topics"]
 
-# 7. Test Partial Feed Failures and API Endpoint GET /api/v1/articles
-def test_get_articles_endpoint_and_partial_failures() -> None:
-    client = TestClient(app)
-    
-    # Mock ArticleCache to return test set
-    mock_articles = [
-        {
-            "title": "Service Article 1",
-            "url": "https://example.com/1",
-            "source": "Dev.to",
-            "author": "Jane",
-            "publishedAt": 1234567,
-            "description": "Description 1",
-            "topics": ["java"],
-            "isOfficial": False,
-            "isTutorial": False,
-            "isCommunity": True,
-            "isNews": False,
-        }
-    ]
+# 7. Test GET /api/v1/articles serves the pre-serialized cache (gzip + ETag)
+MOCK_ARTICLES = [
+    {
+        "title": "Service Article 1",
+        "url": "https://example.com/1",
+        "source": "Dev.to",
+        "author": "Jane",
+        "publishedAt": 1234567,
+        "description": "Description 1 about Spring Boot",
+        "topics": ["java"],
+        "isOfficial": False,
+        "isTutorial": False,
+        "isCommunity": True,
+        "isNews": False,
+    },
+    {
+        "title": "New MacBook Pro with M5 chip",
+        "url": "https://example.com/2",
+        "source": "Apple Newsroom",
+        "author": None,
+        "publishedAt": 2234567,
+        "description": "Apple announces a new laptop.",
+        "topics": ["apple", "laptops"],
+        "isOfficial": True,
+        "isTutorial": None,
+        "isCommunity": None,
+        "isNews": True,
+    },
+]
 
-    with patch("app.api.v1.endpoints.articles.article_cache.get_cached_articles", new_callable=AsyncMock) as mock_get:
-        mock_get.return_value = (mock_articles, 1234567890)
-        
-        # TestClient without `with` doesn't trigger lifespan, which is fine here since we mock the cache
+
+async def _filled_cache() -> ArticleCache:
+    cache = ArticleCache()
+    service = AsyncMock(spec=FeedService)
+    service.get_aggregated_feed.return_value = MOCK_ARTICLES
+    await cache.refresh_cache(service)
+    return cache
+
+
+@pytest.mark.asyncio
+async def test_cache_keeps_previous_articles_when_refresh_is_empty() -> None:
+    cache = await _filled_cache()
+    empty = AsyncMock(spec=FeedService)
+    empty.get_aggregated_feed.return_value = []
+    await cache.refresh_cache(empty)
+    articles, _ = await cache.get_cached_articles()
+    assert len(articles) == 2
+
+
+def test_get_articles_endpoint_gzip_and_etag() -> None:
+    import asyncio
+    cache = asyncio.run(_filled_cache())
+    client = TestClient(app)
+
+    with patch("app.api.v1.endpoints.articles.article_cache", cache):
         response = client.get("/api/v1/articles")
         assert response.status_code == 200
-        
+        assert response.headers["content-encoding"] == "gzip"
+        etag = response.headers["etag"]
+
         data = response.json()
-        assert data["total"] == 1
-        assert len(data["articles"]) == 1
+        assert data["total"] == 2
+        assert data["articleCount"] == 2
         assert data["articles"][0]["title"] == "Service Article 1"
         assert data["articles"][0]["isCommunity"] is True
-        assert data["lastUpdated"] == 1234567890
-        assert data["articleCount"] == 1
+        assert data["lastUpdated"] > 0
+
+        not_modified = client.get("/api/v1/articles", headers={"If-None-Match": etag})
+        assert not_modified.status_code == 304
+
+
+def test_get_articles_returns_503_while_warming_up() -> None:
+    cache = ArticleCache()
+    cache._ready.set()  # simulate "first refresh finished but produced nothing"
+    client = TestClient(app)
+    with patch("app.api.v1.endpoints.articles.article_cache", cache):
+        response = client.get("/api/v1/articles")
+        assert response.status_code == 503
+
+
+# 8. Assistant search reads from the cache instead of refetching every feed
+def test_assistant_search_uses_cache() -> None:
+    import asyncio
+    cache = asyncio.run(_filled_cache())
+    client = TestClient(app)
+    with patch("app.api.v1.endpoints.assistant.article_cache", cache), patch.object(
+        FeedService, "get_aggregated_feed"
+    ) as live_fetch:
+        response = client.post("/api/v1/devd-assistant/search", json={"query": "macbook"})
+        assert response.status_code == 200
+        data = response.json()
+        assert [a["title"] for a in data["articles"]] == ["New MacBook Pro with M5 chip"]
+        assert data["total"] == 1
+        live_fetch.assert_not_called()
+
+
+# 9. URL dedupe keys
+def test_normalize_url_key() -> None:
+    # trailing slash, www and tracking params collapse
+    assert normalize_url_key("https://www.Example.com/post/") == normalize_url_key(
+        "https://example.com/post?utm_source=rss&utm_medium=feed"
+    )
+    # meaningful query params (WordPress ?p=) keep posts distinct
+    assert normalize_url_key("https://blog.example.com/?p=1") != normalize_url_key(
+        "https://blog.example.com/?p=2"
+    )
+
+
+# 10. Big tech / gadget topics
+def test_gadget_topics() -> None:
+    topics = get_matched_topics("Apple unveils iPhone 18 and new MacBook Air", "")
+    assert {"apple", "smartphones", "laptops", "big_tech"} <= set(topics)
+    assert "android" in get_matched_topics("Samsung Galaxy S26 review", "One UI 8 on Android 17")
+    assert "chips_hardware" in get_matched_topics("NVIDIA RTX 5090 benchmarks", "")

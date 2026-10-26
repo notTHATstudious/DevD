@@ -1,34 +1,27 @@
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useSyncExternalStore } from "react";
 import {
-  getReadEntries,
-  markArticleRead as markStored,
+  clearReadHistory,
+  markArticleRead,
   normalizeArticleUrl,
-  type ReadEntry,
+  readStateStore,
 } from "@/lib/readState";
 
-export function useReadState(username: string) {
-  const [readEntries, setReadEntries] = useState<ReadEntry[]>(() =>
-    getReadEntries(username),
-  );
+/** Read history shared by every component (feed, Saved tab, assistant). */
+export function useReadState() {
+  const readEntries = useSyncExternalStore(readStateStore.subscribe, readStateStore.getSnapshot);
 
-  const isRead = useCallback(
-    (url: string) => {
-      const key = normalizeArticleUrl(url);
-      return readEntries.some((e) => normalizeArticleUrl(e.url) === key);
-    },
-    [readEntries],
-  );
+  const keys = useMemo(() => new Set(readEntries.map((e) => e.key)), [readEntries]);
 
-  const markRead = useCallback(
-    (url: string) => {
-      setReadEntries(markStored(username, url));
-    },
-    [username],
-  );
+  const isRead = useCallback((url: string) => keys.has(normalizeArticleUrl(url)), [keys]);
+
+  const markRead = useCallback((url: string) => {
+    markArticleRead(url);
+  }, []);
 
   return {
     readEntries,
     isRead,
     markRead,
+    clearHistory: clearReadHistory,
   };
 }

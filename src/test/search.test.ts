@@ -9,6 +9,7 @@ const article: Article = {
   author: "Jane Doe",
   publishedAt: Date.now(),
   description: "A guide to building REST APIs with Kafka integration.",
+  topics: [],
 };
 
 describe("articleMatchesQuery", () => {
@@ -50,6 +51,24 @@ describe("articleMatchesQuery", () => {
     const noAuthor = { ...article, author: undefined };
     expect(articleMatchesQuery(noAuthor, "jane")).toBe(false);
     expect(articleMatchesQuery(noAuthor, "mongodb")).toBe(true);
+  });
+});
+
+describe("smarter matching", () => {
+  it("matches whole-word prefixes, not the middle of words", () => {
+    const said = { ...article, title: "What the maintainers said", description: "" };
+    expect(articleMatchesQuery(said, "ai")).toBe(false);
+    expect(articleMatchesQuery(article, "mongo")).toBe(true);
+  });
+
+  it("understands common short names", () => {
+    const k8s = { ...article, title: "Kubernetes Ingress", description: "" };
+    expect(articleMatchesQuery(k8s, "k8s")).toBe(true);
+  });
+
+  it("searches topics too", () => {
+    const tagged = { ...article, title: "New release", description: "", topics: ["smartphones"] };
+    expect(articleMatchesQuery(tagged, "smartphones")).toBe(true);
   });
 });
 

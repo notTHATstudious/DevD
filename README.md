@@ -9,6 +9,15 @@ Samsung, Meta, NVIDIA) and gadget news (phones, laptops, hardware).
 - `backend/` — FastAPI service that aggregates ~125 RSS/Atom feeds every 5
   minutes and serves them from an in-memory, pre-gzipped cache.
 
+## Free hosting cold starts
+
+Render's free plan sleeps after 15 minutes without traffic. Two things soften that:
+
+- `.github/workflows/keep-alive.yml` pings `/health` every 10 minutes so the
+  backend stays awake (set the `BACKEND_URL` repository variable if the URL changes).
+- If someone still hits a cold server, the app shows the last saved feed (up to
+  7 days old) or, with nothing saved, a tiny "Coffee Run" game until the site is ready.
+
 ## Run locally
 
 ```bash

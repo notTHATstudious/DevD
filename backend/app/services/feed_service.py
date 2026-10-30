@@ -3,7 +3,7 @@ import asyncio
 import re
 import html
 import time
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from urllib.parse import urlparse, parse_qsl, urlencode
 
 import httpx
@@ -148,9 +148,12 @@ class FeedService:
     def __init__(self, rss_adapter: RSSAdapter):
         self.rss_adapter = rss_adapter
 
-    async def get_aggregated_feed(self) -> List[Dict[str, Any]]:
+    async def get_aggregated_feed(self, deadline_seconds: Optional[float] = None) -> List[Dict[str, Any]]:
         """
         Orchestrates fetching all sources, normalizes articles, and processes them.
+
+        With `deadline_seconds`, feeds that haven't answered by then are skipped,
+        so a cold start can serve most of the feed in a few seconds.
         """
         semaphore = asyncio.Semaphore(MAX_CONCURRENT_FETCHES)
 
@@ -166,15 +169,22 @@ class FeedService:
             },
             limits=httpx.Limits(max_connections=MAX_CONCURRENT_FETCHES),
         ) as client:
-            results = await asyncio.gather(
-                *(fetch(client, source) for source in FEED_SOURCES),
-                return_exceptions=True,
-            )
+            tasks = [asyncio.ensure_future(fetch(client, source)) for source in FEED_SOURCES]
+            _, pending = await asyncio.wait(tasks, timeout=deadline_seconds)
+            for task in pending:
+                task.cancel()
+            if pending:
+                await asyncio.gather(*pending, return_exceptions=True)
+                logger.info(f"Skipped {len(pending)} slow feeds to meet the {deadline_seconds}s deadline.")
+            results = [
+                t.exception() or t.result() if not t.cancelled() else asyncio.CancelledError()
+                for t in tasks
+            ]
 
         now_ms = int(time.time() * 1000)
         all_articles = []
         for source, feed_result in zip(FEED_SOURCES, results):
-            if isinstance(feed_result, Exception):
+            if isinstance(feed_result, BaseException):
                 logger.warning(f"Error fetching feed {source['name']}: {feed_result}")
                 continue
 

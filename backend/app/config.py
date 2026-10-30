@@ -11,6 +11,8 @@ class Settings(BaseSettings):
 
     # Feed cache
     CACHE_REFRESH_SECONDS: int = 300
+    # First refresh after boot only waits this long for slow feeds.
+    COLD_START_DEADLINE_SECONDS: float = 4.0
     BACKGROUND_REFRESH: bool = True  # tests turn this off to avoid network calls
     
     # Server settings

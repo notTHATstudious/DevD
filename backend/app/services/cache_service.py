@@ -4,7 +4,7 @@ import hashlib
 import json
 import logging
 import time
-from typing import List, Dict, Any, Tuple
+from typing import List, Dict, Any, Optional, Tuple
 from app.services.feed_service import FeedService
 from app.services.search_service import SearchIndex
 
@@ -25,7 +25,7 @@ class ArticleCache:
         self._refresh_lock = asyncio.Lock()
         self._ready = asyncio.Event()
 
-    async def refresh_cache(self, feed_service: FeedService) -> None:
+    async def refresh_cache(self, feed_service: FeedService, deadline_seconds: Optional[float] = None) -> None:
         """Fetch fresh articles and update the cache in the background."""
         if self._refresh_lock.locked():
             # A refresh is already running; don't stampede the upstream feeds.
@@ -34,7 +34,7 @@ class ArticleCache:
             try:
                 started = time.perf_counter()
                 logger.info("Starting background cache refresh...")
-                articles = await feed_service.get_aggregated_feed()
+                articles = await feed_service.get_aggregated_feed(deadline_seconds=deadline_seconds)
                 if not articles and self._cache:
                     logger.warning("Refresh returned no articles; keeping previous cache.")
                     return

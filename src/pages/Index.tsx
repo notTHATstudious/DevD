@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { BarChart3, Bookmark, Newspaper, Search, SlidersHorizontal, X } from "lucide-react";
 import { type Article } from "@/lib/feed";
 import { filterArticles } from "@/lib/search";
@@ -13,6 +13,10 @@ import CategoryChips from "@/components/CategoryChips";
 import EmptyState from "@/components/EmptyState";
 import PreferencesPanel from "@/components/PreferencesPanel";
 import StatsPanel from "@/components/StatsPanel";
+import LegalFooter from "@/components/LegalFooter";
+
+// Only downloaded when someone actually waits for a cold server.
+const CoffeeRun = lazy(() => import("@/components/CoffeeRun"));
 import {
   TOPIC_KEYS,
   getSavedPreferences,
@@ -74,14 +78,20 @@ const Index = () => {
   const { readEntries, isRead, markRead, clearHistory } = useReadState();
 
   const [slowLoad, setSlowLoad] = useState(false);
+  // Mini game shown while the server wakes up; stays until the player chooses "Go in".
+  const [gameOpen, setGameOpen] = useState(false);
+  const waiting = isPending || isPlaceholderData;
   useEffect(() => {
-    if (!isPending) {
+    if (isPending && slowLoad) setGameOpen(true);
+  }, [isPending, slowLoad]);
+  useEffect(() => {
+    if (!waiting) {
       setSlowLoad(false);
       return;
     }
     const t = setTimeout(() => setSlowLoad(true), SLOW_LOAD_HINT_MS);
     return () => clearTimeout(t);
-  }, [isPending]);
+  }, [waiting]);
 
   const handlePrefsChange = (next: TopicPreferences) => {
     setTopicPrefs(next);
@@ -236,8 +246,17 @@ const Index = () => {
         <main className="pb-24">
           {tab === "feed" && (
             <>
-              {isPlaceholderData && (
-                <Notice>Showing your last saved feed while the latest articles load…</Notice>
+              {gameOpen && (
+                <Suspense fallback={null}>
+                  <CoffeeRun siteReady={!isPending && !isPlaceholderData} onEnter={() => setGameOpen(false)} />
+                </Suspense>
+              )}
+              {isPlaceholderData && !gameOpen && (
+                <Notice action={slowLoad ? { label: "Play while you wait", onClick: () => setGameOpen(true) } : undefined}>
+                  {slowLoad
+                    ? "Showing your saved feed — the server is waking up, fresh articles will appear on their own."
+                    : "Showing your saved feed while the latest articles load…"}
+                </Notice>
               )}
               {isError && hasArticles && !isFetching && (
                 <Notice action={{ label: "Retry", onClick: () => refetch() }}>
@@ -247,10 +266,10 @@ const Index = () => {
 
               {isPending && (
                 <>
-                  {slowLoad && (
+                  {slowLoad && !gameOpen && (
                     <Notice>
-                      Waking up the server — on free hosting the first load after a while can take up to
-                      30 seconds.
+                      Waking up the server — after a while without visitors the first load can take up to
+                      a minute. This only happens once.
                     </Notice>
                   )}
                   <LoadingList />
@@ -324,9 +343,7 @@ const Index = () => {
           )}
         </main>
 
-        <footer className="safe-bottom border-t border-border pt-6 text-[11px] uppercase tracking-widest text-muted-foreground">
-          DailyD · Developer & tech news
-        </footer>
+        <LegalFooter />
       </div>
     </div>
   );

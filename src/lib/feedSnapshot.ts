@@ -4,11 +4,11 @@ import { readJson } from "@/lib/localStore";
 /**
  * A small copy of the newest articles, so the app can paint instantly on the
  * next visit while the full feed loads (or while the server wakes up).
- * Capped at a few dozen items (~40 KB) to keep storage use low.
+ * Capped at 100 items (~60 KB) to keep storage use low.
  */
 export const SNAPSHOT_KEY = "dailyd_feed_snapshot";
-export const SNAPSHOT_SIZE = 60;
-const SNAPSHOT_MAX_AGE_MS = 3 * 24 * 60 * 60 * 1000;
+export const SNAPSHOT_SIZE = 100;
+const SNAPSHOT_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 
 type Snapshot = { savedAt: number; articles: Article[] };
 

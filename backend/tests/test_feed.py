@@ -265,3 +265,23 @@ def test_gadget_topics() -> None:
     assert {"apple", "smartphones", "laptops", "big_tech"} <= set(topics)
     assert "android" in get_matched_topics("Samsung Galaxy S26 review", "One UI 8 on Android 17")
     assert "chips_hardware" in get_matched_topics("NVIDIA RTX 5090 benchmarks", "")
+
+
+# 11. Cold start deadline skips slow feeds instead of waiting for them
+@pytest.mark.asyncio
+async def test_deadline_skips_slow_feeds() -> None:
+    import asyncio
+
+    calls = {"n": 0}
+
+    async def fake_fetch(client, name, url):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            return [{"title": "Fast", "url": "https://example.com/fast", "description": "", "publishedAt": 1000}]
+        await asyncio.sleep(5)
+        return [{"title": "Slow", "url": f"https://example.com/slow{calls['n']}", "description": "", "publishedAt": 2000}]
+
+    adapter = AsyncMock(spec=RSSAdapter)
+    adapter.fetch_feed.side_effect = fake_fetch
+    articles = await FeedService(adapter).get_aggregated_feed(deadline_seconds=0.2)
+    assert [a["title"] for a in articles] == ["Fast"]

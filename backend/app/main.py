@@ -14,6 +14,11 @@ from app.services.cache_service import article_cache
 from app.api.deps import get_feed_service
 
 async def cache_refresh_task():
+    # Cold start: publish whatever feeds answer within a few seconds so the
+    # first visitor isn't kept waiting, then immediately fetch everything.
+    await article_cache.refresh_cache(
+        get_feed_service(), deadline_seconds=settings.COLD_START_DEADLINE_SECONDS
+    )
     while True:
         await article_cache.refresh_cache(get_feed_service())
         await asyncio.sleep(settings.CACHE_REFRESH_SECONDS)

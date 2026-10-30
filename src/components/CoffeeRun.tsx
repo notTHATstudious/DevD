@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { X } from "lucide-react";
 import {
   GROUND_Y,
   HEIGHT,
@@ -19,6 +20,8 @@ type Props = {
   siteReady: boolean;
   /** "Go in" — close the game and show the feed. */
   onEnter: () => void;
+  /** Opened from the header button: just play, no "site is ready" prompt. */
+  casual?: boolean;
 };
 
 function cssColor(name: string): string {
@@ -73,13 +76,13 @@ function draw(ctx: CanvasRenderingContext2D, g: GameState) {
   ctx.fillText(`${metres(g)} m`, WIDTH - 10, 10);
 }
 
-export default function CoffeeRun({ siteReady, onEnter }: Props) {
+export default function CoffeeRun({ siteReady, onEnter, casual = false }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const gameRef = useRef<GameState>(createGame());
   const readyRef = useRef(siteReady);
   const [status, setStatus] = useState(gameRef.current.status);
   const [best, setBest] = useState(loadBestScore);
-  const [keepPlaying, setKeepPlaying] = useState(false);
+  const [keepPlaying, setKeepPlaying] = useState(casual);
 
   readyRef.current = siteReady && !keepPlaying;
 
@@ -144,9 +147,25 @@ export default function CoffeeRun({ siteReady, onEnter }: Props) {
 
   return (
     <div className="mb-4 rounded-xl border border-border p-3">
-      <div className="mb-1 flex items-center justify-between text-[11px] text-muted-foreground">
-        <span>{siteReady ? "The site is ready!" : "Waking up the server… run to the coffee shop ☕"}</span>
-        <span className="font-mono">best {best} m</span>
+      <div className="mb-1 flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
+        <span>
+          {casual
+            ? "Coffee Run — jump over the bugs ☕"
+            : siteReady
+              ? "The site is ready!"
+              : "Waking up the server… run to the coffee shop ☕"}
+        </span>
+        <span className="flex items-center gap-2">
+          <span className="font-mono">best {best} m</span>
+          <button
+            onClick={onEnter}
+            aria-label="Close game"
+            title="Close game"
+            className="inline-flex h-6 w-6 items-center justify-center rounded-full hover:bg-muted hover:text-foreground"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </span>
       </div>
       <div className="relative">
         <canvas

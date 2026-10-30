@@ -80,6 +80,8 @@ const Index = () => {
   const [slowLoad, setSlowLoad] = useState(false);
   // Mini game shown while the server wakes up; stays until the player chooses "Go in".
   const [gameOpen, setGameOpen] = useState(false);
+  // Opened from the header button rather than because the server is slow.
+  const [casualGame, setCasualGame] = useState(false);
   const waiting = isPending || isPlaceholderData;
   useEffect(() => {
     if (isPending && slowLoad) setGameOpen(true);
@@ -157,6 +159,18 @@ const Index = () => {
         lastUpdated={isPlaceholderData ? undefined : feedData?.lastUpdated}
         refreshing={isFetching}
         onRefresh={() => refetch()}
+        onPlay={() => {
+          // The header button toggles the game.
+          if (gameOpen && tab === "feed") {
+            setGameOpen(false);
+            return;
+          }
+          setTab("feed");
+          // While the server is still waking, keep the "site is ready?" flow.
+          setCasualGame(!(isPending || isPlaceholderData));
+          setGameOpen(true);
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        }}
       />
 
       <div className="mx-auto max-w-2xl px-4 py-6 sm:py-10">
@@ -248,7 +262,15 @@ const Index = () => {
             <>
               {gameOpen && (
                 <Suspense fallback={null}>
-                  <CoffeeRun siteReady={!isPending && !isPlaceholderData} onEnter={() => setGameOpen(false)} />
+                  <CoffeeRun
+                    key={casualGame ? "casual" : "waiting"}
+                    casual={casualGame}
+                    siteReady={!isPending && !isPlaceholderData}
+                    onEnter={() => {
+                      setGameOpen(false);
+                      setCasualGame(false);
+                    }}
+                  />
                 </Suspense>
               )}
               {isPlaceholderData && !gameOpen && (

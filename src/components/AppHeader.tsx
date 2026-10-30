@@ -1,4 +1,4 @@
-import { Moon, Sun, Download, RefreshCw } from "lucide-react";
+import { Moon, Sun, Download, RefreshCw, Gamepad2 } from "lucide-react";
 import { useState } from "react";
 import { useTheme } from "@/lib/useTheme";
 import { useInstallPrompt } from "@/lib/useInstallPrompt";
@@ -9,12 +9,13 @@ type Props = {
   lastUpdated?: number;
   refreshing: boolean;
   onRefresh: () => void;
+  onPlay: () => void;
 };
 
 const iconButton =
   "inline-flex h-9 w-9 items-center justify-center rounded-full border border-border transition hover:bg-muted disabled:opacity-50";
 
-export default function AppHeader({ lastUpdated, refreshing, onRefresh }: Props) {
+export default function AppHeader({ lastUpdated, refreshing, onRefresh, onPlay }: Props) {
   const { theme, toggle } = useTheme();
   const { canInstall, installed, ios, promptInstall } = useInstallPrompt();
   const [showIosHint, setShowIosHint] = useState(false);
@@ -69,6 +70,10 @@ export default function AppHeader({ lastUpdated, refreshing, onRefresh }: Props)
             className={iconButton}
           >
             <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
+          </button>
+
+          <button onClick={onPlay} aria-label="Play Coffee Run" title="Play Coffee Run" className={iconButton}>
+            <Gamepad2 className="h-4 w-4" />
           </button>
 
           <button onClick={toggle} aria-label="Toggle theme" className={iconButton}>

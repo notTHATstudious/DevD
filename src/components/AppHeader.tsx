@@ -1,4 +1,4 @@
-import { Moon, Sun, Download, RefreshCw, Gamepad2 } from "lucide-react";
+import { Moon, Sun, Download, RefreshCw, Coffee } from "lucide-react";
 import { useState } from "react";
 import { useTheme } from "@/lib/useTheme";
 import { useInstallPrompt } from "@/lib/useInstallPrompt";
@@ -73,7 +73,7 @@ export default function AppHeader({ lastUpdated, refreshing, onRefresh, onPlay }
           </button>
 
           <button onClick={onPlay} aria-label="Play Coffee Run" title="Play Coffee Run" className={iconButton}>
-            <Gamepad2 className="h-4 w-4" />
+            <Coffee className="h-4 w-4" />
           </button>
 
           <button onClick={toggle} aria-label="Toggle theme" className={iconButton}>

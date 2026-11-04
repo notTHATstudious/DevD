@@ -10,6 +10,7 @@ from app.api.v1.router import api_router
 from app.config import settings
 from app.core.exceptions import register_exception_handlers
 from app.core.logging import setup_logging
+from app.core.security import register_security
 from app.services.cache_service import article_cache
 from app.api.deps import get_feed_service
 
@@ -42,10 +43,16 @@ app = FastAPI(
     title=settings.APP_NAME,
     version=settings.APP_VERSION,
     debug=settings.DEBUG,
-    docs_url="/docs" if settings.APP_ENV != "production" else None,
-    redoc_url="/redoc" if settings.APP_ENV != "production" else None,
+    # API docs only when explicitly debugging, never on a public server by default.
+    docs_url="/docs" if settings.DEBUG else None,
+    redoc_url="/redoc" if settings.DEBUG else None,
+    openapi_url="/openapi.json" if settings.DEBUG else None,
     lifespan=lifespan,
 )
+
+# Security headers, body size limit and rate limiting. Registered before CORS
+# so CORS stays the outermost layer and even 429/413 responses carry CORS headers.
+register_security(app)
 
 # Apply CORS Middleware configurations
 app.add_middleware(

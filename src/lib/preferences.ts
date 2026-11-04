@@ -32,6 +32,20 @@ export const TOPICS = {
   laptops: "Laptops",
   chips_hardware: "Chips & Hardware",
   big_tech: "Big Tech",
+  python: "Python",
+  fastapi: "FastAPI",
+  django: "Django",
+  nodejs: "Node.js",
+  nestjs: "NestJS",
+  golang: "Go",
+  dotnet: ".NET",
+  react: "React",
+  nextjs: "Next.js",
+  angular: "Angular",
+  vue: "Vue",
+  svelte: "Svelte",
+  typescript: "TypeScript",
+  web_platform: "HTML & CSS",
 } as const;
 
 export type TopicKey = keyof typeof TOPICS;
@@ -41,11 +55,11 @@ export type TopicPreferences = Record<TopicKey, boolean>;
 export const TOPIC_KEYS = Object.keys(TOPICS) as TopicKey[];
 
 /** Sections for the Topics screen. */
+/**
+ * Shared sections of the Topics screen (every track). Stack-specific topics
+ * (Java, React, …) are listed under each stack instead — see lib/stacks.ts.
+ */
 export const TOPIC_GROUPS: { label: string; keys: TopicKey[] }[] = [
-  {
-    label: "Backend & Java",
-    keys: ["java", "spring_boot", "spring_cloud", "kafka", "microservices", "backend_engineering"],
-  },
   { label: "Data", keys: ["databases", "postgresql", "mongodb", "redis"] },
   {
     label: "Cloud & DevOps",
@@ -54,7 +68,7 @@ export const TOPIC_GROUPS: { label: string; keys: TopicKey[] }[] = [
   { label: "AI", keys: ["ai_engineering", "llms", "openai", "anthropic"] },
   {
     label: "Engineering practice",
-    keys: ["system_design", "software_architecture", "security", "performance", "testing"],
+    keys: ["system_design", "software_architecture", "backend_engineering", "security", "performance", "testing"],
   },
   {
     label: "Big Tech & Gadgets",
@@ -136,11 +150,26 @@ export const TOPIC_REGEX_MAP: Record<TopicKey, RegExp> = {
   laptops: /\b(laptops?|macbook|chromebooks?|thinkpad|surface\s+(pro|laptop)|xps|zenbook|copilot\+\s?pc|ultrabook)\b/i,
   chips_hardware: /\b(cpus?|gpus?|chips?|silicon|semiconductors?|nvidia|amd|intel|qualcomm|arm|tsmc|rtx\s?\d+|ryzen|m[1-9]\s+(pro|max|ultra|chip))\b/i,
   big_tech: /\b(apple|google|alphabet|microsoft|meta|amazon|nvidia|samsung|tesla|netflix)\b/i,
+  // Stacks (keep in sync with backend/app/services/feed_service.py).
+  python: /\b(python|pypi|pytest|pydantic|cpython|asyncio|sqlalchemy)\b/i,
+  fastapi: /\b(fastapi|starlette|uvicorn)\b/i,
+  django: /\b(django)\b/i,
+  nodejs: /\b(node\.?js|nodejs|deno|npm|express\.js|expressjs|bun\.sh)\b/i,
+  nestjs: /\b(nest\.?js|prisma)\b/i,
+  golang: /\b(golang|goroutines?)\b|\bGo (1\.\d+|modules?|generics|developers?|programming|code|service|backend)\b/,
+  dotnet: /(?<![\w])\.NET\b|\b(dotnet|asp\.net|blazor|ef core|entity framework|C#)/i,
+  react: /\bReact(\.?js| Native| Server Components| hooks?| Router)?\b|\b(reactjs|jsx|useState|useEffect)\b/,
+  nextjs: /\b(next\.?js|nextjs)\b/i,
+  angular: /\bAngular(JS)?\b|\b(rxjs|ngrx)\b/,
+  vue: /\b(vue(\.?js)?|nuxt|pinia)\b/i,
+  svelte: /\b(svelte(kit)?)\b/i,
+  typescript: /\b(typescript)\b/i,
+  web_platform: /\b(css|html|tailwind|sass|flexbox|accessibility|a11y|web vitals|webassembly|wasm|browsers?)\b/i,
 };
 
 /** Identify matching topics for text */
 export function getMatchedTopics(title: string, description: string): TopicKey[] {
-  const text = `${title} ${description}`.toLowerCase();
+  const text = `${title} ${description}`;
   const matched: TopicKey[] = [];
   for (const key of TOPIC_KEYS) {
     const re = TOPIC_REGEX_MAP[key];

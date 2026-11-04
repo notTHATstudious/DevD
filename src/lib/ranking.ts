@@ -2,6 +2,9 @@ import type { Article } from "@/lib/feed";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
+/** Points for matching one of the visitor's chosen stacks. */
+export const STACK_BOOST = 20;
+
 const REPUTABLE_AUTHORS = [
   "martin fowler",
   "vlad mihalcea",
@@ -30,9 +33,15 @@ const REPUTABLE_AUTHORS = [
 export function calculateArticleScore(
   article: Article,
   activeTopics: string[],
-  now = Date.now()
+  now = Date.now(),
+  stackTopics?: ReadonlySet<string>,
 ): number {
   let score = 0;
+
+  // 0. Your stacks first (e.g. React articles for a React developer).
+  if (stackTopics && (article.topics || []).some((t) => stackTopics.has(t))) {
+    score += STACK_BOOST;
+  }
 
   // 1. Official Documentation check
   if (article.isOfficial) {
@@ -100,11 +109,12 @@ export function calculateArticleScore(
 export function sortArticlesByRelevance(
   articles: Article[],
   activeTopics: string[],
-  now = Date.now()
+  now = Date.now(),
+  stackTopics?: ReadonlySet<string>,
 ): Article[] {
   const scored = articles.map((article) => ({
     article,
-    score: calculateArticleScore(article, activeTopics, now),
+    score: calculateArticleScore(article, activeTopics, now, stackTopics),
   }));
 
   scored.sort((a, b) => {

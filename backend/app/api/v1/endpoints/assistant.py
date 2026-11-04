@@ -14,6 +14,8 @@ class SearchRequest(BaseModel):
     query: str = Field(..., max_length=200)
     limit: int = Field(default=20, ge=1, le=50)
     offset: int = Field(default=0, ge=0, le=1000)
+    # Topics of the visitor's chosen stacks; matching articles rank higher.
+    boostTopics: List[str] = Field(default_factory=list, max_length=30)
 
 
 class SearchResponse(BaseModel):
@@ -38,7 +40,8 @@ async def search_assistant(request: SearchRequest) -> SearchResponse:
     # feed per request took seconds and hammered the upstream sites.
     await article_cache.wait_until_ready(10)
     index = await article_cache.get_search_index()
-    result = search(index, query, limit=request.limit, offset=request.offset)
+    boost = [t[:40] for t in request.boostTopics]
+    result = search(index, query, limit=request.limit, offset=request.offset, boost_topics=boost)
 
     return SearchResponse(
         summary=result.summary,

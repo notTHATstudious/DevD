@@ -18,6 +18,10 @@ const SYNONYMS: Record<string, string[]> = {
   laptop: ["laptops", "macbook", "chromebook", "thinkpad"],
   gpu: ["gpus", "nvidia"],
   springboot: ["spring"],
+  go: ["golang"],
+  golang: ["go"],
+  node: ["nodejs"],
+  dotnet: ["net", "csharp"],
 };
 
 const WORD_RE = /[a-z0-9+#]+/g;

@@ -5,6 +5,8 @@ export type AssistantSearchRequest = {
   query: string;
   limit?: number;
   offset?: number;
+  /** Topics of your stacks; matching articles rank higher. */
+  boostTopics?: string[];
 };
 
 export type AssistantSearchResponse = {
@@ -25,10 +27,11 @@ export async function searchAssistant({
   query,
   limit = ASSISTANT_PAGE_SIZE,
   offset = 0,
+  boostTopics = [],
 }: AssistantSearchRequest): Promise<AssistantSearchResponse> {
   const data = await apiClient<Partial<AssistantSearchResponse>>("/api/v1/devd-assistant/search", {
     method: "POST",
-    body: JSON.stringify({ query, limit, offset }),
+    body: JSON.stringify({ query, limit, offset, boostTopics }),
   });
   return {
     summary: data.summary ?? "",

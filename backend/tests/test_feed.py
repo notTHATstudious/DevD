@@ -285,3 +285,31 @@ async def test_deadline_skips_slow_feeds() -> None:
     adapter.fetch_feed.side_effect = fake_fetch
     articles = await FeedService(adapter).get_aggregated_feed(deadline_seconds=0.2)
     assert [a["title"] for a in articles] == ["Fast"]
+
+
+# 12. Stack topics: real tech names match, everyday words don't
+def test_stack_topics_avoid_everyday_words() -> None:
+    assert "golang" in get_matched_topics("Getting started with Go 1.24 generics", "")
+    assert "golang" not in get_matched_topics("Let us go home early", "")
+    assert "react" in get_matched_topics("React Server Components explained", "")
+    assert "react" not in get_matched_topics("How markets react to news", "")
+    assert "angular" not in get_matched_topics("An angular shape", "")
+    assert "nodejs" not in get_matched_topics("Draining a Kubernetes node", "")
+    assert {"python", "fastapi"} <= set(get_matched_topics("FastAPI with Pydantic v2", ""))
+    assert "dotnet" in get_matched_topics("What's new in .NET 10", "")
+
+
+# 13. Source hints tag every post from stack-specific feeds
+@pytest.mark.asyncio
+async def test_source_topic_hints() -> None:
+    from app.adapters.rss import feed_sources
+
+    adapter = AsyncMock(spec=RSSAdapter)
+    adapter.fetch_feed.return_value = [
+        {"title": "Release notes", "url": "https://go.dev/blog/x", "description": "", "publishedAt": 1}
+    ]
+    with patch.object(feed_sources, "FEED_SOURCES", [{"name": "Go Blog", "url": "u", "topics": ["golang"]}]), patch(
+        "app.services.feed_service.FEED_SOURCES", [{"name": "Go Blog", "url": "u", "topics": ["golang"]}]
+    ):
+        articles = await FeedService(adapter).get_aggregated_feed()
+    assert articles[0]["topics"] == ["golang"]

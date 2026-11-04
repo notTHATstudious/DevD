@@ -1,28 +1,21 @@
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { X } from "lucide-react";
 
+const ContactForm = lazy(() => import("@/components/ContactForm"));
+
 const OWNER = "Maheeesh";
-/** Contact link — not set yet. Put an email ("mailto:…") or page URL here later. */
-const CONTACT_URL: string | null = null;
+const LAST_UPDATED = "November 2026";
 
-function Contact({ className }: { className?: string }) {
-  if (!CONTACT_URL) return <span className={className}>Contact</span>;
-  return (
-    <a href={CONTACT_URL} target="_blank" rel="noopener noreferrer" className={className}>
-      Contact
-    </a>
-  );
-}
+type Doc = "privacy" | "terms" | "contact";
 
-type Doc = "privacy" | "terms";
-
-const DOCS: Record<Doc, { title: string; points: string[] }> = {
+const DOCS: Record<Exclude<Doc, "contact">, { title: string; points: string[] }> = {
   privacy: {
     title: "Privacy Policy",
     points: [
       "No accounts, ads, analytics or tracking cookies.",
       "Your bookmarks, reading history, topics, theme and game score are stored only in this browser. Clear them anytime in Stats or your browser settings.",
       "Search queries are sent to our server to find articles and are not stored. Our host may keep standard access logs (such as IP address) for security.",
+      `Messages sent through Contact (and your name or email, if you add them) are used only to reply and are deleted within 12 months. To ask for your data to be deleted, use Contact → Privacy request.`,
       "Source icons are loaded from Google's favicon service, which receives the site's domain and your IP address.",
       "Opening an article takes you to the publisher's website, which has its own privacy policy.",
     ],
@@ -65,7 +58,9 @@ export default function LegalFooter() {
           <button onClick={() => setOpen("terms")} className={link}>
             Terms
           </button>
-          <Contact className={CONTACT_URL ? link : undefined} />
+          <button onClick={() => setOpen("contact")} className={link}>
+            Contact
+          </button>
         </nav>
       </div>
       <p className="mt-1 text-[11px] text-muted-foreground/80">
@@ -76,16 +71,16 @@ export default function LegalFooter() {
         <div
           role="dialog"
           aria-modal="true"
-          aria-label={DOCS[open].title}
+          aria-label={open === "contact" ? "Contact" : DOCS[open].title}
           onClick={() => setOpen(null)}
           className="fixed inset-0 z-[60] flex items-end justify-center bg-black/40 p-4 sm:items-center"
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-md rounded-2xl border border-border bg-background p-5 text-sm text-foreground shadow-2xl"
+            className="max-h-[90dvh] w-full max-w-md overflow-y-auto rounded-2xl border border-border bg-background p-5 text-sm text-foreground shadow-2xl"
           >
             <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-lg font-semibold">{DOCS[open].title}</h2>
+              <h2 className="text-lg font-semibold">{open === "contact" ? "Contact" : DOCS[open].title}</h2>
               <button
                 onClick={() => setOpen(null)}
                 aria-label="Close"
@@ -94,14 +89,20 @@ export default function LegalFooter() {
                 <X className="h-4 w-4" />
               </button>
             </div>
-            <ul className="list-disc space-y-2 pl-5 text-muted-foreground">
-              {DOCS[open].points.map((p) => (
-                <li key={p}>{p}</li>
-              ))}
-            </ul>
-            <p className="mt-4 text-xs text-muted-foreground">
-              Last updated October 2026
-            </p>
+            {open === "contact" ? (
+              <Suspense fallback={<p className="text-muted-foreground">Loading…</p>}>
+                <ContactForm onDone={() => setOpen(null)} />
+              </Suspense>
+            ) : (
+              <>
+                <ul className="list-disc space-y-2 pl-5 text-muted-foreground">
+                  {DOCS[open].points.map((p) => (
+                    <li key={p}>{p}</li>
+                  ))}
+                </ul>
+                <p className="mt-4 text-xs text-muted-foreground">Last updated {LAST_UPDATED}</p>
+              </>
+            )}
           </div>
         </div>
       )}

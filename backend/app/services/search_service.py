@@ -79,6 +79,18 @@ SYNONYMS: Dict[str, List[str]] = {
     "db": ["database"],
     "database": ["db", "sql"],
     "vm": ["virtual"],
+    "go": ["golang"],
+    "golang": ["go"],
+    "node": ["nodejs"],
+    "nodejs": ["node"],
+    "nest": ["nestjs"],
+    "next": ["nextjs"],
+    "dotnet": ["net", "csharp"],
+    "csharp": ["dotnet", "c#"],
+    "vue": ["nuxt"],
+    "svelte": ["sveltekit"],
+    "react": ["nextjs", "jsx"],
+    "css": ["tailwind", "web"],
 }
 
 # Phrases that collapse to one token before tokenizing.
@@ -282,6 +294,7 @@ def search(
     limit: int = 20,
     offset: int = 0,
     now_ms: Optional[int] = None,
+    boost_topics: Optional[List[str]] = None,
 ) -> SearchResult:
     now_ms = now_ms or int(time.time() * 1000)
     parsed = parse_query(query)
@@ -298,14 +311,15 @@ def search(
         ranked = sorted(candidates, key=lambda d: d.article.get("publishedAt", 0), reverse=True)
         return _result(index, ranked, parsed, None, offset, limit, partial=False)
 
-    ranked, partial = _rank(index, candidates, parsed.terms, now_ms)
+    boost = frozenset(boost_topics or [])
+    ranked, partial = _rank(index, candidates, parsed.terms, now_ms, boost)
 
     # Nothing found? Retry with typo fixes ("kubernates" → "kubernetes").
     did_you_mean = None
     if not ranked or partial:
         fixed = [index.correct(t) or t for t in parsed.terms]
         if fixed != parsed.terms:
-            fixed_ranked, fixed_partial = _rank(index, candidates, fixed, now_ms)
+            fixed_ranked, fixed_partial = _rank(index, candidates, fixed, now_ms, boost)
             if fixed_ranked and (not ranked or not fixed_partial):
                 ranked, partial = fixed_ranked, fixed_partial
                 did_you_mean = " ".join(index.display(t) for t in fixed)
@@ -314,7 +328,11 @@ def search(
 
 
 def _rank(
-    index: SearchIndex, candidates: List[IndexedDoc], terms: List[str], now_ms: int
+    index: SearchIndex,
+    candidates: List[IndexedDoc],
+    terms: List[str],
+    now_ms: int,
+    boost: frozenset = frozenset(),
 ) -> Tuple[List[IndexedDoc], bool]:
     groups = [[t] + [s for s in SYNONYMS.get(t, []) if s != t] for t in terms]
     phrase = " ".join(terms)
@@ -331,6 +349,9 @@ def _rank(
         if len(terms) > 1 and phrase in " ".join(tokenize(doc.article.get("title") or "")):
             score *= 1.5
         score *= _recency_multiplier(doc.article.get("publishedAt", 0), now_ms)
+        # Lean toward the visitor's stacks (e.g. "testing" → pytest for Python devs).
+        if boost and boost.intersection(doc.article.get("topics") or []):
+            score *= 1.4
         published = doc.article.get("publishedAt", 0)
         if matched == len(groups):
             full.append((score, published, doc))

@@ -37,9 +37,17 @@ ENV PYTHONUNBUFFERED=1
 # Copy source code and set ownership
 COPY --chown=appuser:appgroup app /workspace/app
 
+# Writable folder for contact form messages. Mount a persistent volume here
+# (e.g. -v dailyd-data:/workspace/data) so messages survive redeploys.
+RUN mkdir -p /workspace/data && chown appuser:appgroup /workspace/data
+VOLUME ["/workspace/data"]
+
 # Set user
 USER appuser
 
 EXPOSE 8000
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# --proxy-headers: trust X-Forwarded-For from the host's load balancer so rate
+# limiting sees real client IPs. Set FORWARDED_ALLOW_IPS to your proxy's IP if known.
+ENV FORWARDED_ALLOW_IPS="*"
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers", "--no-server-header"]

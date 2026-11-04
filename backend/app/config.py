@@ -1,4 +1,5 @@
 import json
+from pathlib import Path
 from typing import Any, List
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -37,6 +38,19 @@ class Settings(BaseSettings):
         if isinstance(v, list):
             return [str(item) for item in v]
         raise ValueError(f"Invalid format for CORS_ORIGINS: {v}")
+
+    # Contact form. Messages are saved in a small SQLite file on the server.
+    # Default: backend/data/messages.db (in Docker: /workspace/data/messages.db).
+    CONTACT_DB_PATH: str = str(Path(__file__).resolve().parent.parent / "data" / "messages.db")
+    CONTACT_RETENTION_DAYS: int = 365
+    CONTACT_DAILY_LIMIT: int = 200  # total messages per day, against spam floods
+    # Optional: also email each message to you. The address never reaches the browser.
+    CONTACT_EMAIL_TO: str | None = None
+    SMTP_HOST: str | None = None
+    SMTP_PORT: int = 587
+    SMTP_USER: str | None = None
+    SMTP_PASSWORD: str | None = None
+    SMTP_FROM: str | None = None
 
     # Future phase placeholders
     DATABASE_URL: str | None = None

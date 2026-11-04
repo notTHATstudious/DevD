@@ -1,11 +1,11 @@
 FEED_SOURCES = [
     # ---------- Dev.to (tag feeds) ----------
-    {"name": "Dev.to", "url": "https://dev.to/feed/tag/java", "is_community": True},
-    {"name": "Dev.to", "url": "https://dev.to/feed/tag/springboot", "is_community": True},
-    {"name": "Dev.to", "url": "https://dev.to/feed/tag/spring", "is_community": True},
-    {"name": "Dev.to", "url": "https://dev.to/feed/tag/hibernate", "is_community": True},
+    {"name": "Dev.to", "url": "https://dev.to/feed/tag/java", "is_community": True, "topics": ["java"]},
+    {"name": "Dev.to", "url": "https://dev.to/feed/tag/springboot", "is_community": True, "topics": ["java", "spring_boot"]},
+    {"name": "Dev.to", "url": "https://dev.to/feed/tag/spring", "is_community": True, "topics": ["java", "spring_boot"]},
+    {"name": "Dev.to", "url": "https://dev.to/feed/tag/hibernate", "is_community": True, "topics": ["java"]},
     {"name": "Dev.to", "url": "https://dev.to/feed/tag/mongodb", "is_community": True},
-    {"name": "Dev.to", "url": "https://dev.to/feed/tag/kafka", "is_community": True},
+    {"name": "Dev.to", "url": "https://dev.to/feed/tag/kafka", "is_community": True, "topics": ["kafka"]},
     {"name": "Dev.to", "url": "https://dev.to/feed/tag/ai", "is_community": True},
     {"name": "Dev.to", "url": "https://dev.to/feed/tag/llm", "is_community": True},
     {"name": "Dev.to", "url": "https://dev.to/feed/tag/chatgpt", "is_community": True},
@@ -24,13 +24,13 @@ FEED_SOURCES = [
     {"name": "Dev.to", "url": "https://dev.to/feed", "is_community": True},
 
     # ---------- Medium (tag feeds) ----------
-    {"name": "Medium", "url": "https://medium.com/feed/tag/java", "is_community": True},
-    {"name": "Medium", "url": "https://medium.com/feed/tag/spring-boot", "is_community": True},
-    {"name": "Medium", "url": "https://medium.com/feed/tag/spring", "is_community": True},
-    {"name": "Medium", "url": "https://medium.com/feed/tag/hibernate", "is_community": True},
+    {"name": "Medium", "url": "https://medium.com/feed/tag/java", "is_community": True, "topics": ["java"]},
+    {"name": "Medium", "url": "https://medium.com/feed/tag/spring-boot", "is_community": True, "topics": ["java", "spring_boot"]},
+    {"name": "Medium", "url": "https://medium.com/feed/tag/spring", "is_community": True, "topics": ["java", "spring_boot"]},
+    {"name": "Medium", "url": "https://medium.com/feed/tag/hibernate", "is_community": True, "topics": ["java"]},
     {"name": "Medium", "url": "https://medium.com/feed/tag/mongodb", "is_community": True},
-    {"name": "Medium", "url": "https://medium.com/feed/tag/kafka", "is_community": True},
-    {"name": "Medium", "url": "https://medium.com/feed/tag/apache-kafka", "is_community": True},
+    {"name": "Medium", "url": "https://medium.com/feed/tag/kafka", "is_community": True, "topics": ["kafka"]},
+    {"name": "Medium", "url": "https://medium.com/feed/tag/apache-kafka", "is_community": True, "topics": ["kafka"]},
     {"name": "Medium", "url": "https://medium.com/feed/tag/microservices", "is_community": True},
     {"name": "Medium", "url": "https://medium.com/feed/tag/ai", "is_community": True},
     {"name": "Medium", "url": "https://medium.com/feed/tag/artificial-intelligence", "is_community": True},
@@ -49,11 +49,11 @@ FEED_SOURCES = [
     {"name": "Medium", "url": "https://medium.com/feed/tag/security", "is_community": True},
 
     # ---------- Reddit (subreddit RSS) ----------
-    {"name": "Reddit", "url": "https://www.reddit.com/r/java/.rss", "is_community": True},
-    {"name": "Reddit", "url": "https://www.reddit.com/r/SpringBoot/.rss", "is_community": True},
-    {"name": "Reddit", "url": "https://www.reddit.com/r/javahelp/.rss", "is_community": True},
+    {"name": "Reddit", "url": "https://www.reddit.com/r/java/.rss", "is_community": True, "topics": ["java"]},
+    {"name": "Reddit", "url": "https://www.reddit.com/r/SpringBoot/.rss", "is_community": True, "topics": ["java", "spring_boot"]},
+    {"name": "Reddit", "url": "https://www.reddit.com/r/javahelp/.rss", "is_community": True, "topics": ["java"]},
     {"name": "Reddit", "url": "https://www.reddit.com/r/mongodb/.rss", "is_community": True},
-    {"name": "Reddit", "url": "https://www.reddit.com/r/apachekafka/.rss", "is_community": True},
+    {"name": "Reddit", "url": "https://www.reddit.com/r/apachekafka/.rss", "is_community": True, "topics": ["kafka"]},
     {"name": "Reddit", "url": "https://www.reddit.com/r/ClaudeAI/.rss", "is_community": True},
     {"name": "Reddit", "url": "https://www.reddit.com/r/cursor/.rss", "is_community": True},
     {"name": "Reddit", "url": "https://www.reddit.com/r/LocalLLaMA/.rss", "is_community": True},
@@ -61,10 +61,10 @@ FEED_SOURCES = [
     {"name": "Reddit", "url": "https://www.reddit.com/r/programming/.rss", "is_community": True},
 
     # ---------- Hacker News (via hnrss.org) ----------
-    {"name": "Hacker News", "url": "https://hnrss.org/newest?q=java+spring", "is_news": True},
-    {"name": "Hacker News", "url": "https://hnrss.org/newest?q=spring+boot", "is_news": True},
+    {"name": "Hacker News", "url": "https://hnrss.org/newest?q=java+spring", "is_news": True, "topics": ["java"]},
+    {"name": "Hacker News", "url": "https://hnrss.org/newest?q=spring+boot", "is_news": True, "topics": ["java", "spring_boot"]},
     {"name": "Hacker News", "url": "https://hnrss.org/newest?q=mongodb", "is_news": True},
-    {"name": "Hacker News", "url": "https://hnrss.org/newest?q=kafka", "is_news": True},
+    {"name": "Hacker News", "url": "https://hnrss.org/newest?q=kafka", "is_news": True, "topics": ["kafka"]},
     {"name": "Hacker News", "url": "https://hnrss.org/newest?q=claude+ai", "is_news": True},
     {"name": "Hacker News", "url": "https://hnrss.org/newest?q=cursor+ai", "is_news": True},
     {"name": "Hacker News", "url": "https://hnrss.org/newest?q=llm", "is_news": True},
@@ -73,20 +73,20 @@ FEED_SOURCES = [
     {"name": "InfoQ", "url": "https://feed.infoq.com/", "is_news": True},
 
     # ---------- Baeldung (Java/Spring focused) ----------
-    {"name": "Baeldung", "url": "https://www.baeldung.com/feed/", "is_tutorial": True},
+    {"name": "Baeldung", "url": "https://www.baeldung.com/feed/", "is_tutorial": True, "topics": ["java"]},
 
     # ---------- Spring.io blog ----------
-    {"name": "Spring.io", "url": "https://spring.io/blog.atom", "is_official": True},
+    {"name": "Spring.io", "url": "https://spring.io/blog.atom", "is_official": True, "topics": ["java", "spring_boot"]},
 
     # ---------- Java Official Blogs ----------
-    {"name": "Inside Java", "url": "https://inside.java/feed.xml", "is_official": True},
-    {"name": "Java Code Geeks", "url": "https://feeds.feedburner.com/JavaCodeGeeks", "is_tutorial": True},
-    {"name": "Reflectoring.io", "url": "https://reflectoring.io/index.xml", "is_tutorial": True},
-    {"name": "Piotr's TechBlog", "url": "https://piotrminkowski.com/feed/", "is_tutorial": True},
-    {"name": "Thorben Janssen", "url": "https://thorben-janssen.com/feed/", "is_tutorial": True},
+    {"name": "Inside Java", "url": "https://inside.java/feed.xml", "is_official": True, "topics": ["java"]},
+    {"name": "Java Code Geeks", "url": "https://feeds.feedburner.com/JavaCodeGeeks", "is_tutorial": True, "topics": ["java"]},
+    {"name": "Reflectoring.io", "url": "https://reflectoring.io/index.xml", "is_tutorial": True, "topics": ["java", "spring_boot"]},
+    {"name": "Piotr's TechBlog", "url": "https://piotrminkowski.com/feed/", "is_tutorial": True, "topics": ["java", "spring_boot"]},
+    {"name": "Thorben Janssen", "url": "https://thorben-janssen.com/feed/", "is_tutorial": True, "topics": ["java"]},
 
     # ---------- Kafka & System Design Blogs ----------
-    {"name": "Confluent Blog", "url": "https://www.confluent.io/rss.xml", "is_official": True},
+    {"name": "Confluent Blog", "url": "https://www.confluent.io/rss.xml", "is_official": True, "topics": ["kafka"]},
     {"name": "Jack Vanlightly", "url": "https://jack-vanlightly.com/blog?format=rss", "is_official": True},
 
     # ---------- DevOps & Cloud Blogs ----------
@@ -156,4 +156,60 @@ FEED_SOURCES = [
     {"name": "XDA Developers", "url": "https://www.xda-developers.com/feed/", "is_news": True},
     {"name": "Notebookcheck", "url": "https://www.notebookcheck.net/RSS-Feed-Notebook-Reviews.8156.0.html", "is_news": True},
     {"name": "Tom's Hardware", "url": "https://www.tomshardware.com/feeds.xml", "is_news": True},
+
+    # ---------- Stacks: Python / FastAPI / Django ----------
+    {"name": "Real Python", "url": "https://realpython.com/atom.xml", "is_tutorial": True, "topics": ["python"]},
+    {"name": "Python Insider", "url": "https://blog.python.org/feeds/posts/default", "is_official": True, "topics": ["python"]},
+    {"name": "Planet Python", "url": "https://planetpython.org/rss20.xml", "is_community": True, "topics": ["python"]},
+    {"name": "TestDriven.io", "url": "https://testdriven.io/feed.xml", "is_tutorial": True, "topics": ["python"]},
+    {"name": "Django Blog", "url": "https://www.djangoproject.com/rss/weblog/", "is_official": True, "topics": ["python", "django"]},
+    {"name": "Dev.to", "url": "https://dev.to/feed/tag/fastapi", "is_community": True, "topics": ["python", "fastapi"]},
+    {"name": "Dev.to", "url": "https://dev.to/feed/tag/python", "is_community": True, "topics": ["python"]},
+    {"name": "Reddit", "url": "https://www.reddit.com/r/FastAPI/.rss", "is_community": True, "topics": ["python", "fastapi"]},
+
+    # ---------- Stacks: Node.js / NestJS ----------
+    {"name": "Node.js Blog", "url": "https://nodejs.org/en/feed/blog.xml", "is_official": True, "topics": ["nodejs"]},
+    {"name": "Node Weekly", "url": "https://cprss.s3.amazonaws.com/nodeweekly.com.xml", "is_news": True, "topics": ["nodejs"]},
+    {"name": "Dev.to", "url": "https://dev.to/feed/tag/node", "is_community": True, "topics": ["nodejs"]},
+    {"name": "Dev.to", "url": "https://dev.to/feed/tag/nestjs", "is_community": True, "topics": ["nodejs", "nestjs"]},
+
+    # ---------- Stacks: Go ----------
+    {"name": "Go Blog", "url": "https://go.dev/blog/feed.atom", "is_official": True, "topics": ["golang"]},
+    {"name": "Golang Weekly", "url": "https://cprss.s3.amazonaws.com/golangweekly.com.xml", "is_news": True, "topics": ["golang"]},
+    {"name": "Dev.to", "url": "https://dev.to/feed/tag/go", "is_community": True, "topics": ["golang"]},
+    {"name": "Reddit", "url": "https://www.reddit.com/r/golang/.rss", "is_community": True, "topics": ["golang"]},
+
+    # ---------- Stacks: C# / .NET ----------
+    {"name": ".NET Blog", "url": "https://devblogs.microsoft.com/dotnet/feed/", "is_official": True, "topics": ["dotnet"]},
+    {"name": "Andrew Lock", "url": "https://andrewlock.net/rss.xml", "is_tutorial": True, "topics": ["dotnet"]},
+    {"name": "Dev.to", "url": "https://dev.to/feed/tag/dotnet", "is_community": True, "topics": ["dotnet"]},
+
+    # ---------- Stacks: React / Next.js ----------
+    {"name": "React Blog", "url": "https://react.dev/rss.xml", "is_official": True, "topics": ["react"]},
+    {"name": "Next.js Blog", "url": "https://nextjs.org/feed.xml", "is_official": True, "topics": ["react", "nextjs"]},
+    {"name": "This Week in React", "url": "https://thisweekinreact.com/newsletter/rss.xml", "is_news": True, "topics": ["react"]},
+    {"name": "Josh Comeau", "url": "https://www.joshwcomeau.com/rss.xml", "is_tutorial": True, "topics": ["react", "web_platform"]},
+    {"name": "Dev.to", "url": "https://dev.to/feed/tag/react", "is_community": True, "topics": ["react"]},
+
+    # ---------- Stacks: Angular ----------
+    {"name": "Angular Blog", "url": "https://blog.angular.dev/feed", "is_official": True, "topics": ["angular"]},
+    {"name": "Dev.to", "url": "https://dev.to/feed/tag/angular", "is_community": True, "topics": ["angular"]},
+    {"name": "Reddit", "url": "https://www.reddit.com/r/Angular2/.rss", "is_community": True, "topics": ["angular"]},
+
+    # ---------- Stacks: Vue / Nuxt ----------
+    {"name": "Vue Blog", "url": "https://blog.vuejs.org/feed.rss", "is_official": True, "topics": ["vue"]},
+    {"name": "Nuxt Blog", "url": "https://nuxt.com/blog/rss.xml", "is_official": True, "topics": ["vue"]},
+    {"name": "Dev.to", "url": "https://dev.to/feed/tag/vue", "is_community": True, "topics": ["vue"]},
+
+    # ---------- Stacks: Svelte ----------
+    {"name": "Svelte Blog", "url": "https://svelte.dev/blog/rss.xml", "is_official": True, "topics": ["svelte"]},
+    {"name": "Dev.to", "url": "https://dev.to/feed/tag/svelte", "is_community": True, "topics": ["svelte"]},
+    {"name": "Reddit", "url": "https://www.reddit.com/r/sveltejs/.rss", "is_community": True, "topics": ["svelte"]},
+
+    # ---------- Stacks: Web basics (HTML, CSS, TypeScript) ----------
+    {"name": "web.dev", "url": "https://web.dev/feed.xml", "is_official": True, "topics": ["web_platform"]},
+    {"name": "CSS-Tricks", "url": "https://css-tricks.com/feed/", "is_tutorial": True, "topics": ["web_platform"]},
+    {"name": "Smashing Magazine", "url": "https://www.smashingmagazine.com/feed/", "is_tutorial": True, "topics": ["web_platform"]},
+    {"name": "Frontend Focus", "url": "https://cprss.s3.amazonaws.com/frontendfoc.us.xml", "is_news": True, "topics": ["web_platform"]},
+    {"name": "JavaScript Weekly", "url": "https://cprss.s3.amazonaws.com/javascriptweekly.com.xml", "is_news": True},
 ]

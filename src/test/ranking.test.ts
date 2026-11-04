@@ -116,3 +116,13 @@ describe("sortArticlesByRelevance", () => {
     expect(sorted[2].title).toBe("Spring Boot tutorial");
   });
 });
+
+describe("stack boost", () => {
+  it("ranks your stack's articles above shared news", () => {
+    const now = Date.now();
+    const shared: Article = { title: "Cloud news", url: "https://e.x/1", source: "s", publishedAt: now - 1000, description: "", topics: ["aws"], isOfficial: true };
+    const mine: Article = { title: "React tips", url: "https://e.x/2", source: "s", publishedAt: now - 5000, description: "", topics: ["react"] };
+    const sorted = sortArticlesByRelevance([shared, mine], [], now, new Set(["react"]));
+    expect(sorted[0].title).toBe("React tips");
+  });
+});

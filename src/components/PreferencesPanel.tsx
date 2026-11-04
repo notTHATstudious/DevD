@@ -5,10 +5,14 @@ import {
   type TopicKey,
   type TopicPreferences,
 } from "@/lib/preferences";
+import StackPicker from "@/components/StackPicker";
+import { STACKS, type Profile } from "@/lib/stacks";
 
 type Props = {
   prefs: TopicPreferences;
   onChange: (prefs: TopicPreferences) => void;
+  profile: Profile;
+  onProfileChange: (profile: Profile) => void;
 };
 
 const smallButton =
@@ -20,11 +24,21 @@ function setAll(prefs: TopicPreferences, keys: TopicKey[], value: boolean): Topi
   return next;
 }
 
-export default function PreferencesPanel({ prefs, onChange }: Props) {
+export default function PreferencesPanel({ prefs, onChange, profile, onProfileChange }: Props) {
   const enabledCount = TOPIC_KEYS.filter((k) => prefs[k]).length;
+  // Fine-grained topics: one section per chosen stack, then the shared sections.
+  const groups = [
+    ...profile.stacks.map((k) => ({ label: STACKS[k].label, keys: [...STACKS[k].topics] as TopicKey[] })),
+    ...TOPIC_GROUPS,
+  ];
 
   return (
     <div className="space-y-8">
+      <section>
+        <h2 className="mb-3 text-base font-semibold tracking-tight">Your track & stacks</h2>
+        <StackPicker profile={profile} onChange={onProfileChange} />
+      </section>
+
       <div className="flex flex-col gap-3 border-b border-border pb-4 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-xs text-muted-foreground">
           {enabledCount === TOPIC_KEYS.length
@@ -41,7 +55,7 @@ export default function PreferencesPanel({ prefs, onChange }: Props) {
         </div>
       </div>
 
-      {TOPIC_GROUPS.map((group) => {
+      {groups.map((group) => {
         const allOn = group.keys.every((k) => prefs[k]);
         return (
           <section key={group.label}>

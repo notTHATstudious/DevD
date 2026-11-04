@@ -6,6 +6,8 @@ import { Article } from "@/lib/feed";
 import { useBookmarks } from "@/lib/useBookmarks";
 import { useReadState } from "@/lib/useReadState";
 import ArticleCard from "@/components/ArticleCard";
+import { useProfile } from "@/lib/useProfile";
+import { profileTopics } from "@/lib/stacks";
 
 type Message = {
   id: string;
@@ -46,9 +48,11 @@ const FloatingAssistant = () => {
   // Shared stores: bookmarking here updates the feed and Saved tab immediately.
   const { isBookmarked, toggleBookmark } = useBookmarks();
   const { isRead, markRead } = useReadState();
+  const { profile } = useProfile();
+  const boostTopics = [...profileTopics(profile)];
 
   const searchMutation = useMutation({
-    mutationFn: (query: string) => searchAssistant({ query }),
+    mutationFn: (query: string) => searchAssistant({ query, boostTopics }),
     onSuccess: (data, query) => {
       setMessages((prev) => [
         ...prev,
@@ -111,6 +115,7 @@ const FloatingAssistant = () => {
         query: msg.query,
         offset: msg.articles?.length ?? 0,
         limit: ASSISTANT_PAGE_SIZE,
+        boostTopics,
       });
       updateMessage(msg.id, (m) => {
         const seen = new Set((m.articles ?? []).map((a) => a.url));

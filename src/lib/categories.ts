@@ -1,4 +1,5 @@
 import type { Article } from "@/lib/feed";
+import { STACKS, type StackKey } from "@/lib/stacks";
 
 /** Quick filter chips shown above the feed and the Saved tab. */
 export const CATEGORIES = [
@@ -8,29 +9,29 @@ export const CATEGORIES = [
   { key: "community", label: "Community" },
   { key: "news", label: "News" },
   { key: "ai", label: "AI" },
-  { key: "backend", label: "Backend" },
   { key: "cloud", label: "Cloud" },
   { key: "devops", label: "DevOps" },
   { key: "gadgets", label: "Phones & Laptops" },
   { key: "big_tech", label: "Big Tech" },
 ] as const;
 
-export type CategoryKey = (typeof CATEGORIES)[number]["key"];
+/** A fixed category, or one of your stacks ("stack:python"). */
+export type CategoryKey = (typeof CATEGORIES)[number]["key"] | `stack:${StackKey}`;
 
 const TOPIC_CATEGORIES: Partial<Record<CategoryKey, string[]>> = {
   ai: ["ai_engineering", "llms", "openai", "anthropic"],
   cloud: ["aws", "azure", "gcp", "cloud_native"],
   devops: ["devops", "ci_cd", "docker", "kubernetes"],
-  backend: [
-    "java", "spring_boot", "spring_cloud", "kafka", "microservices",
-    "databases", "postgresql", "mongodb", "redis", "system_design",
-    "backend_engineering", "software_architecture", "performance", "testing",
-  ],
   gadgets: ["apple", "android", "smartphones", "laptops"],
   big_tech: ["big_tech"],
 };
 
 export function matchesCategory(article: Article, category: CategoryKey): boolean {
+  if (category.startsWith("stack:")) {
+    const stack = STACKS[category.slice(6) as StackKey];
+    const wanted: readonly string[] = stack?.topics ?? [];
+    return (article.topics || []).some((t) => wanted.includes(t));
+  }
   switch (category) {
     case "all":
       return true;
@@ -43,7 +44,7 @@ export function matchesCategory(article: Article, category: CategoryKey): boolea
     case "news":
       return !!article.isNews;
     default: {
-      const wanted = TOPIC_CATEGORIES[category] ?? [];
+      const wanted = TOPIC_CATEGORIES[category as keyof typeof TOPIC_CATEGORIES] ?? [];
       return (article.topics || []).some((t) => wanted.includes(t));
     }
   }

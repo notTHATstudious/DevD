@@ -31,7 +31,7 @@ MAX_CONCURRENT_FETCHES = 24
 
 # Keep the payload small: the newest N items per source, and N overall.
 MAX_ARTICLES_PER_SOURCE_FEED = 25
-MAX_TOTAL_ARTICLES = 1500
+MAX_TOTAL_ARTICLES = 2000
 MAX_DESCRIPTION_CHARS = 300
 
 # Anything dated further than this into the future is a broken feed timestamp.
@@ -75,6 +75,23 @@ TOPIC_REGEX_MAP = {
     "laptops": re.compile(r"\b(laptops?|macbook|chromebooks?|thinkpad|surface\s+(pro|laptop)|xps|zenbook|copilot\+\s?pc|ultrabook)\b", re.IGNORECASE),
     "chips_hardware": re.compile(r"\b(cpus?|gpus?|chips?|silicon|semiconductors?|nvidia|amd|intel|qualcomm|arm|tsmc|rtx\s?\d+|ryzen|m[1-9]\s+(pro|max|ultra|chip))\b", re.IGNORECASE),
     "big_tech": re.compile(r"\b(apple|google|alphabet|microsoft|meta|amazon|nvidia|samsung|tesla|netflix)\b", re.IGNORECASE),
+    # ---------- Stacks (keep in sync with src/lib/preferences.ts) ----------
+    # Names that are also ordinary words (Go, React, Angular, Express) are matched
+    # case-sensitively or only with technical context; source hints cover the rest.
+    "python": re.compile(r"\b(python|pypi|pytest|pydantic|cpython|asyncio|sqlalchemy)\b", re.IGNORECASE),
+    "fastapi": re.compile(r"\b(fastapi|starlette|uvicorn)\b", re.IGNORECASE),
+    "django": re.compile(r"\b(django)\b", re.IGNORECASE),
+    "nodejs": re.compile(r"\b(node\.?js|nodejs|deno|npm|express\.js|expressjs|bun\.sh)\b", re.IGNORECASE),
+    "nestjs": re.compile(r"\b(nest\.?js|prisma)\b", re.IGNORECASE),
+    "golang": re.compile(r"\b(golang|goroutines?)\b|\bGo (1\.\d+|modules?|generics|developers?|programming|code|service|backend)\b"),
+    "dotnet": re.compile(r"(?<![\w])\.NET\b|\b(dotnet|asp\.net|blazor|ef core|entity framework|C#)", re.IGNORECASE),
+    "react": re.compile(r"\bReact(\.?js| Native| Server Components| hooks?| Router)?\b|\b(reactjs|jsx|useState|useEffect)\b"),
+    "nextjs": re.compile(r"\b(next\.?js|nextjs)\b", re.IGNORECASE),
+    "angular": re.compile(r"\bAngular(JS)?\b|\b(rxjs|ngrx)\b"),
+    "vue": re.compile(r"\b(vue(\.?js)?|nuxt|pinia)\b", re.IGNORECASE),
+    "svelte": re.compile(r"\b(svelte(kit)?)\b", re.IGNORECASE),
+    "typescript": re.compile(r"\b(typescript)\b", re.IGNORECASE),
+    "web_platform": re.compile(r"\b(css|html|tailwind|sass|flexbox|accessibility|a11y|web vitals|webassembly|wasm|browsers?)\b", re.IGNORECASE),
 }
 
 
@@ -207,6 +224,10 @@ class FeedService:
                     author = strip_html(author) or None
 
                 topics = get_matched_topics(title, description)
+                # Stack-specific sources (e.g. the Go blog) tag every post with their stack.
+                for hint in source.get("topics", []):
+                    if hint not in topics:
+                        topics.append(hint)
 
                 all_articles.append({
                     "title": title,

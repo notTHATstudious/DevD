@@ -38,3 +38,6 @@ venv/
 
 # TypeScript incremental build info
 *.tsbuildinfo
+
+# Contact form messages (server data, never commit)
+backend/data/

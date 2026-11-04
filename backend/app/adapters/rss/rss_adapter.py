@@ -7,6 +7,9 @@ import datetime
 
 logger = logging.getLogger("app.rss_adapter")
 
+# Real feeds are well under 1 MB; anything this big is broken or malicious.
+MAX_FEED_BYTES = 5 * 1024 * 1024
+
 class RSSAdapter:
     def __init__(self, timeout_seconds: float = 5.0):
         self.timeout = timeout_seconds
@@ -17,12 +20,18 @@ class RSSAdapter:
         Handles timeout and parser errors gracefully to support partial failure.
         """
         try:
-            response = await client.get(url, timeout=self.timeout)
-            if response.status_code != 200:
-                logger.warning(f"Failed to fetch feed {name} from {url}: status {response.status_code}")
-                return []
-            
-            return self.parse_xml(response.content, name)
+            async with client.stream("GET", url, timeout=self.timeout) as response:
+                if response.status_code != 200:
+                    logger.warning(f"Failed to fetch feed {name} from {url}: status {response.status_code}")
+                    return []
+                # Cap the download so a broken or hostile feed can't exhaust memory.
+                body = bytearray()
+                async for chunk in response.aiter_bytes():
+                    body.extend(chunk)
+                    if len(body) > MAX_FEED_BYTES:
+                        logger.warning(f"Feed {name} exceeded {MAX_FEED_BYTES} bytes; skipped.")
+                        return []
+            return self.parse_xml(bytes(body), name)
         except httpx.RequestError as exc:
             logger.warning(f"Network error fetching feed {name} from {url}: {exc}")
             return []

@@ -104,3 +104,12 @@ def test_no_results_message():
 def test_tokenize_stems_and_phrases():
     assert tokenize("Containers and Spring Boot") == ["container", "and", "springboot"]
     assert parse_query("latest k8s news").terms == ["k8s"]
+
+
+def test_boost_topics_lean_toward_your_stack():
+    idx = SearchIndex.build([
+        art("Testing tips with JUnit", "testing guide", topics=["java", "testing"], age_days=1),
+        art("Testing tips with pytest", "testing guide", topics=["python", "testing"], age_days=1),
+    ])
+    assert titles(search(idx, "testing tips", now_ms=NOW, boost_topics=["python"]))[0] == "Testing tips with pytest"
+    assert titles(search(idx, "testing tips", now_ms=NOW, boost_topics=["java"]))[0] == "Testing tips with JUnit"

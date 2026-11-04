@@ -9,6 +9,13 @@ Samsung, Meta, NVIDIA) and gadget news (phones, laptops, hardware).
 - `backend/` — FastAPI service that aggregates ~125 RSS/Atom feeds every 5
   minutes and serves them from an in-memory, pre-gzipped cache.
 
+## Documentation
+
+- [Architecture & tech stack](docs/ARCHITECTURE.md)
+- [Security review](docs/SECURITY.md)
+- [Deployment & what you need](docs/DEPLOYMENT.md)
+- [Legal checklist](docs/LEGAL.md)
+
 ## Free hosting cold starts
 
 Render's free plan sleeps after 15 minutes without traffic. Two things soften that:

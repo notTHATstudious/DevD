@@ -4,6 +4,8 @@ export type Article = {
   source: string;
   author?: string;
   publishedAt: number;
+  /** https image from the feed, if it has one. */
+  image?: string | null;
   description: string;
   topics: string[];
   isOfficial?: boolean;

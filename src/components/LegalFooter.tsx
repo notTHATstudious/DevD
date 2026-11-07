@@ -16,7 +16,7 @@ const DOCS: Record<Exclude<Doc, "contact">, { title: string; points: string[] }>
       "Your bookmarks, reading history, topics, theme and game score are stored only in this browser. Clear them anytime in Stats or your browser settings.",
       "Search queries are sent to our server to find articles and are not stored. Our host may keep standard access logs (such as IP address) for security.",
       `Messages sent through Contact (and your name or email, if you add them) are used only to reply and are deleted within 12 months. To ask for your data to be deleted, use Contact → Privacy request.`,
-      "Source icons are loaded from Google's favicon service, which receives the site's domain and your IP address.",
+      "Source icons are loaded from Google's favicon service, and article images directly from publishers. These services receive your IP address.",
       "Opening an article takes you to the publisher's website, which has its own privacy policy.",
     ],
   },

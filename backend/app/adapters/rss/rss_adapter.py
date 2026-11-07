@@ -1,4 +1,5 @@
 import logging
+import re
 import httpx
 import xml.etree.ElementTree as ET
 from typing import List, Dict, Any, Optional
@@ -9,6 +10,9 @@ logger = logging.getLogger("app.rss_adapter")
 
 # Real feeds are well under 1 MB; anything this big is broken or malicious.
 MAX_FEED_BYTES = 5 * 1024 * 1024
+
+IMG_SRC_RE = re.compile(r"""<img\b[^>]*?\bsrc=["']([^"']+)["']""", re.IGNORECASE)
+IMAGE_URL_RE = re.compile(r"\.(jpe?g|png|webp|gif|avif)(\?|$)", re.IGNORECASE)
 
 class RSSAdapter:
     def __init__(self, timeout_seconds: float = 5.0):
@@ -46,6 +50,31 @@ class RSSAdapter:
         for child in elem:
             if self._get_local_name(child.tag) == local_name:
                 return child.text
+        return None
+
+    def _extract_image(self, elem: ET.Element) -> Optional[str]:
+        """Image for an item: media:content/thumbnail, an image enclosure, or the first <img>."""
+        for node in elem.iter():
+            name = self._get_local_name(node.tag)
+            if name not in ("content", "thumbnail", "enclosure"):
+                continue
+            url = node.attrib.get("url")
+            if not url:
+                continue
+            kind = node.attrib.get("type", "")
+            if (
+                name == "thumbnail"
+                or kind.startswith("image/")
+                or node.attrib.get("medium") == "image"
+                or (not kind and IMAGE_URL_RE.search(url))
+            ):
+                return url
+        # Must run on the raw HTML, before the description is stripped to text.
+        for node in elem.iter():
+            if self._get_local_name(node.tag) in ("description", "encoded", "summary", "content") and node.text:
+                match = IMG_SRC_RE.search(node.text)
+                if match:
+                    return match.group(1)
         return None
 
     def _parse_date_to_ms(self, date_str: Optional[str]) -> Optional[int]:
@@ -132,6 +161,7 @@ class RSSAdapter:
                         "description": description,
                         "publishedAt": published_at,
                         "author": author,
+                        "image": self._extract_image(entry),
                     })
 
         # Detect RSS
@@ -170,6 +200,7 @@ class RSSAdapter:
                         "description": description,
                         "publishedAt": published_at,
                         "author": author,
+                        "image": self._extract_image(item),
                     })
 
         return articles

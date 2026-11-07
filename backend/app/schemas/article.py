@@ -10,6 +10,7 @@ class Article(BaseModel):
     author: Optional[str] = None
     publishedAt: int  # ms timestamp
     description: str
+    image: Optional[str] = None
     topics: List[str]
     isOfficial: Optional[bool] = Field(default=None, alias="isOfficial")
     isTutorial: Optional[bool] = Field(default=None, alias="isTutorial")

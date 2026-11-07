@@ -1,4 +1,4 @@
-import { forwardRef, type CSSProperties } from "react";
+import { forwardRef, useState, type CSSProperties } from "react";
 import { Bookmark, Share2 } from "lucide-react";
 import { isValidArticleUrl } from "@/lib/articleUrl";
 import { formatRelativeTime, type Article } from "@/lib/feed";
@@ -12,6 +12,8 @@ type Props = {
   onOpenArticle?: (article: Article) => void;
   /** Shown on saved tab — when the article was bookmarked */
   savedAt?: number;
+  /** "card": image card for the feed. "list": compact row (default). */
+  variant?: "card" | "list";
   /** Set by the virtualized list to position and measure the card. */
   style?: CSSProperties;
   "data-index"?: number;
@@ -25,12 +27,15 @@ const ArticleCard = forwardRef<HTMLLIElement, Props>(function ArticleCard(
     onToggleBookmark,
     onOpenArticle,
     savedAt,
+    variant = "list",
     style,
     "data-index": dataIndex,
   },
   ref,
 ) {
   const safeUrl = isValidArticleUrl(article.url) ? article.url.trim() : null;
+  const [imageFailed, setImageFailed] = useState(false);
+  const image = article.image && isValidArticleUrl(article.image) && !imageFailed ? article.image : null;
 
   const handleOpen = () => {
     if (safeUrl) onOpenArticle?.(article);
@@ -76,6 +81,95 @@ const ArticleCard = forwardRef<HTMLLIElement, Props>(function ArticleCard(
       }
     }
   };
+
+  if (variant === "card") {
+    const actionButton =
+      "relative z-10 inline-flex h-8 w-8 items-center justify-center rounded-full transition hover:bg-muted";
+    return (
+      <li ref={ref} style={style} data-index={dataIndex} className="pb-3">
+        <article
+          className={`relative overflow-hidden rounded-2xl border border-border bg-card ${read ? "opacity-70" : ""}`}
+        >
+          <div className="flex items-center gap-2 px-3.5 py-2.5 text-xs">
+            {faviconUrl && (
+              <img
+                src={faviconUrl}
+                alt=""
+                className="h-5 w-5 shrink-0 rounded-full"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).style.display = "none";
+                }}
+              />
+            )}
+            <span className="min-w-0 truncate font-medium">{article.source}</span>
+            <time dateTime={new Date(article.publishedAt).toISOString()} className="ml-auto shrink-0 text-muted-foreground">
+              {formatRelativeTime(article.publishedAt)}
+            </time>
+          </div>
+
+          {image && (
+            <img
+              src={image}
+              alt=""
+              loading="lazy"
+              decoding="async"
+              referrerPolicy="no-referrer"
+              onError={() => setImageFailed(true)}
+              className="aspect-[2/1] w-full bg-muted object-cover"
+            />
+          )}
+
+          <div className="px-3.5 pb-2 pt-2.5">
+            <h2 className={`text-[17px] leading-snug tracking-tight ${read ? "font-medium text-muted-foreground" : "font-semibold"}`}>
+              {safeUrl ? (
+                // The link covers the whole card; the buttons sit above it.
+                <a
+                  href={safeUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={handleOpen}
+                  className="after:absolute after:inset-0 hover:underline hover:underline-offset-4"
+                >
+                  {article.title}
+                </a>
+              ) : (
+                article.title
+              )}
+            </h2>
+            {!image && article.description && (
+              <p className="mt-1.5 line-clamp-2 text-sm text-muted-foreground">{article.description}</p>
+            )}
+            {article.topics && article.topics.length > 0 && (
+              <p className="mt-1.5 truncate text-xs capitalize text-muted-foreground">
+                {article.topics.slice(0, 2).map((t) => t.replace(/_/g, " ")).join(" · ")}
+              </p>
+            )}
+            <div className="mt-1 flex items-center text-xs text-muted-foreground">
+              <span>
+                {read ? "Read · " : ""}
+                {readTime} min read
+                {savedAt !== undefined ? ` · saved ${formatRelativeTime(savedAt)}` : ""}
+              </span>
+              <button
+                type="button"
+                onClick={() => onToggleBookmark(article)}
+                aria-label={bookmarked ? "Remove bookmark" : "Save article"}
+                aria-pressed={bookmarked}
+                className={`${actionButton} ml-auto ${bookmarked ? "text-foreground" : ""}`}
+              >
+                <Bookmark className={`h-4 w-4 ${bookmarked ? "fill-current" : ""}`} />
+              </button>
+              {safeUrl && (
+                <button type="button" onClick={handleShare} aria-label="Share article" className={actionButton}>
+                  <Share2 className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+          </div>
+        </article>
+      </li>
+    );
+  }
 
   return (
     <li ref={ref} style={style} data-index={dataIndex} className={`py-5 ${read ? "opacity-75" : ""}`}>

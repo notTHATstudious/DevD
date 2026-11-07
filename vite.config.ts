@@ -23,8 +23,8 @@ function cspPlugin(apiUrl: string): Plugin {
           "default-src 'self'",
           `script-src 'self' ${hashes.join(" ")}`,
           "style-src 'self' 'unsafe-inline'",
-          // Source icons come from Google's favicon service (redirects to gstatic).
-          "img-src 'self' data: https://www.google.com https://*.gstatic.com",
+          // Article images come from each publisher, so any https host is allowed.
+          "img-src 'self' data: https:",
           "font-src 'self' data:",
           `connect-src 'self' ${apiOrigin}`,
           "manifest-src 'self'",

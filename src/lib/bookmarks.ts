@@ -38,6 +38,7 @@ function sanitizeArticle(item: unknown): BookmarkedArticle | null {
   if (a.isTutorial) out.isTutorial = true;
   if (a.isCommunity) out.isCommunity = true;
   if (a.isNews) out.isNews = true;
+  if (typeof a.image === "string" && isValidArticleUrl(a.image)) out.image = a.image;
   return out;
 }
 

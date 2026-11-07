@@ -25,7 +25,7 @@ leaves the visitor's browser.
 
 1. On start, the backend fetches all feeds (first pass waits max 4 s so it can
    answer quickly), cleans them (HTML stripped, only `https` links, duplicates
-   removed, topics tagged) and keeps the newest 2,000 articles in memory.
+   removed, topics tagged) and keeps the newest 1,200 articles from the last 30 days in memory.
 2. Every 5 minutes it refreshes in the background. Each refresh also rebuilds
    the search index and a pre-compressed copy of the article list.
 3. The web app downloads that list once (~330 KB compressed), then does

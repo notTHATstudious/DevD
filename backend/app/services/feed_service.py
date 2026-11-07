@@ -31,7 +31,23 @@ MAX_CONCURRENT_FETCHES = 24
 
 # Keep the payload small: the newest N items per source, and N overall.
 MAX_ARTICLES_PER_SOURCE_FEED = 25
-MAX_TOTAL_ARTICLES = 2000
+MAX_TOTAL_ARTICLES = 1200
+MAX_ARTICLE_AGE_MS = 30 * 24 * 60 * 60 * 1000
+MIN_ARTICLES_PER_STACK = 40
+
+# Topics of each stack (keep in sync with src/lib/stacks.ts).
+STACK_TOPIC_GROUPS = [
+    {"java", "spring_boot", "spring_cloud", "kafka", "microservices"},
+    {"python", "fastapi", "django"},
+    {"nodejs", "nestjs"},
+    {"golang"},
+    {"dotnet"},
+    {"react", "nextjs"},
+    {"angular"},
+    {"vue"},
+    {"svelte"},
+    {"typescript", "web_platform"},
+]
 MAX_DESCRIPTION_CHARS = 300
 
 # Anything dated further than this into the future is a broken feed timestamp.
@@ -161,6 +177,29 @@ def get_matched_topics(title: str, description: str) -> List[str]:
     return matched
 
 
+def select_articles(articles: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """
+    Apply the total cap to a newest-first list. Each stack keeps its newest
+    MIN_ARTICLES_PER_STACK first, so busy feeds can't push out quieter stacks.
+    """
+    if len(articles) <= MAX_TOTAL_ARTICLES:
+        return articles
+    keep = set()
+    for stack_topics in STACK_TOPIC_GROUPS:
+        reserved = 0
+        for i, a in enumerate(articles):
+            if reserved >= MIN_ARTICLES_PER_STACK:
+                break
+            if stack_topics.intersection(a["topics"]):
+                keep.add(i)
+                reserved += 1
+    for i in range(len(articles)):
+        if len(keep) >= MAX_TOTAL_ARTICLES:
+            break
+        keep.add(i)
+    return [articles[i] for i in sorted(keep)]
+
+
 class FeedService:
     def __init__(self, rss_adapter: RSSAdapter):
         self.rss_adapter = rss_adapter
@@ -217,6 +256,8 @@ class FeedService:
                 published_at = item.get("publishedAt")
                 if published_at is None or published_at > now_ms + MAX_FUTURE_SKEW_MS:
                     continue
+                if published_at < now_ms - MAX_ARTICLE_AGE_MS:
+                    continue
 
                 description = truncate(strip_html(item.get("description") or ""), MAX_DESCRIPTION_CHARS)
                 author = item.get("author")
@@ -229,6 +270,10 @@ class FeedService:
                     if hint not in topics:
                         topics.append(hint)
 
+                image = (item.get("image") or "").strip()
+                if len(image) > 500 or not is_valid_article_url(image):
+                    image = None
+
                 all_articles.append({
                     "title": title,
                     "url": url,
@@ -236,6 +281,7 @@ class FeedService:
                     "author": author,
                     "publishedAt": published_at,
                     "description": description,
+                    "image": image,
                     "topics": topics,
                     "isOfficial": source.get("is_official"),
                     "isTutorial": source.get("is_tutorial"),
@@ -255,7 +301,5 @@ class FeedService:
                 continue
             seen_keys.add(key)
             deduped_articles.append(a)
-            if len(deduped_articles) >= MAX_TOTAL_ARTICLES:
-                break
 
-        return deduped_articles
+        return select_articles(deduped_articles)

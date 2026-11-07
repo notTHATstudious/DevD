@@ -1,3 +1,5 @@
+import time
+
 import pytest
 from unittest.mock import AsyncMock, patch
 from fastapi.testclient import TestClient
@@ -12,6 +14,8 @@ from app.services.feed_service import (
 )
 from app.services.cache_service import ArticleCache
 from app.main import app
+
+RECENT = int(time.time() * 1000) - 60_000
 
 # 1. Test HTML Stripping
 def test_strip_html() -> None:
@@ -103,14 +107,14 @@ async def test_feed_service_processing() -> None:
             "title": "Dup Article",
             "url": "https://example.com/dup?utm_source=rss",
             "description": "First instance.",
-            "publishedAt": 1000,
+            "publishedAt": RECENT + 1000,
             "author": "Author A",
         },
         {
             "title": "Unique Article 1",
             "url": "https://example.com/unique-1",
             "description": "Unique description.",
-            "publishedAt": 3000,
+            "publishedAt": RECENT + 3000,
             "author": "Author B",
         }
     ]
@@ -120,14 +124,14 @@ async def test_feed_service_processing() -> None:
             "title": "Dup Article (older)",
             "url": "https://example.com/dup/",
             "description": "Second instance, trailing slash.",
-            "publishedAt": 500,  # Should be discarded as duplicate and older
+            "publishedAt": RECENT + 500,  # Should be discarded as duplicate and older
             "author": "Author A",
         },
         {
             "title": "Unique Article 2",
             "url": "https://example.com/unique-2",
             "description": "Kafka streams and Spring boot integration",
-            "publishedAt": 4000,
+            "publishedAt": RECENT + 4000,
             "author": "Author C",
         }
     ]
@@ -277,9 +281,9 @@ async def test_deadline_skips_slow_feeds() -> None:
     async def fake_fetch(client, name, url):
         calls["n"] += 1
         if calls["n"] == 1:
-            return [{"title": "Fast", "url": "https://example.com/fast", "description": "", "publishedAt": 1000}]
+            return [{"title": "Fast", "url": "https://example.com/fast", "description": "", "publishedAt": RECENT + 1000}]
         await asyncio.sleep(5)
-        return [{"title": "Slow", "url": f"https://example.com/slow{calls['n']}", "description": "", "publishedAt": 2000}]
+        return [{"title": "Slow", "url": f"https://example.com/slow{calls['n']}", "description": "", "publishedAt": RECENT + 2000}]
 
     adapter = AsyncMock(spec=RSSAdapter)
     adapter.fetch_feed.side_effect = fake_fetch
@@ -306,10 +310,47 @@ async def test_source_topic_hints() -> None:
 
     adapter = AsyncMock(spec=RSSAdapter)
     adapter.fetch_feed.return_value = [
-        {"title": "Release notes", "url": "https://go.dev/blog/x", "description": "", "publishedAt": 1}
+        {"title": "Release notes", "url": "https://go.dev/blog/x", "description": "", "publishedAt": RECENT + 1}
     ]
     with patch.object(feed_sources, "FEED_SOURCES", [{"name": "Go Blog", "url": "u", "topics": ["golang"]}]), patch(
         "app.services.feed_service.FEED_SOURCES", [{"name": "Go Blog", "url": "u", "topics": ["golang"]}]
     ):
         articles = await FeedService(adapter).get_aggregated_feed()
     assert articles[0]["topics"] == ["golang"]
+
+
+# 14. Images come from media tags, enclosures or the first <img>
+def test_image_extraction() -> None:
+    xml = b"""<rss xmlns:media="http://search.yahoo.com/mrss/"><channel>
+      <item><title>A</title><link>https://e.x/a</link><media:thumbnail url="https://e.x/a.png"/></item>
+      <item><title>B</title><link>https://e.x/b</link><enclosure url="https://e.x/b.mp3" type="audio/mpeg"/>
+        <description>&lt;p&gt;&lt;img src="https://e.x/b.jpg"&gt;Hi&lt;/p&gt;</description></item>
+      <item><title>C</title><link>https://e.x/c</link><description>Text</description></item>
+    </channel></rss>"""
+    images = [a["image"] for a in RSSAdapter().parse_xml(xml, "T")]
+    assert images == ["https://e.x/a.png", "https://e.x/b.jpg", None]
+
+
+# 15. Old articles and non-https images are dropped
+@pytest.mark.asyncio
+async def test_age_limit_and_image_safety() -> None:
+    adapter = AsyncMock(spec=RSSAdapter)
+    old = int(time.time() * 1000) - 31 * 24 * 60 * 60 * 1000
+    adapter.fetch_feed.side_effect = [[
+        {"title": "New", "url": "https://e.x/n", "publishedAt": RECENT, "image": "http://e.x/i.png"},
+        {"title": "Old", "url": "https://e.x/o", "publishedAt": old},
+    ]] + [[]] * 500
+    articles = await FeedService(adapter).get_aggregated_feed()
+    assert [a["title"] for a in articles] == ["New"]
+    assert articles[0]["image"] is None
+
+
+# 16. The cap keeps room for quiet stacks
+def test_cap_reserves_articles_for_each_stack() -> None:
+    from app.services.feed_service import MAX_TOTAL_ARTICLES, select_articles
+
+    busy = [{"topics": ["java"], "n": i} for i in range(MAX_TOTAL_ARTICLES + 50)]
+    quiet = [{"topics": ["svelte"], "n": -1}]
+    result = select_articles(busy + quiet)
+    assert len(result) == MAX_TOTAL_ARTICLES
+    assert result[-1]["topics"] == ["svelte"]

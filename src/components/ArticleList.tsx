@@ -3,9 +3,10 @@ import { useWindowVirtualizer } from "@tanstack/react-virtual";
 import ArticleCard from "@/components/ArticleCard";
 import type { Article } from "@/lib/feed";
 import type { BookmarkedArticle } from "@/lib/bookmarks";
+import type { FeedView } from "@/lib/feedView";
 
-/** Guess for a card's height before it is measured (px). */
-const ESTIMATED_CARD_HEIGHT = 190;
+/** Guess for an item's height before it is measured (px). */
+const ESTIMATED_HEIGHT = { card: 300, list: 190 };
 
 /** Extra cards kept rendered above and below the screen for smooth scrolling. */
 export const OVERSCAN = 6;
@@ -17,6 +18,7 @@ type Props = {
   onToggleBookmark: (article: Article) => void;
   onOpenArticle: (article: Article) => void;
   showSavedAt?: boolean;
+  variant: FeedView;
   /** Changes whenever the filters change, so the list starts from the top again. */
   resetKey: string;
 };
@@ -32,6 +34,7 @@ export default function ArticleList({
   onToggleBookmark,
   onOpenArticle,
   showSavedAt,
+  variant,
   resetKey,
 }: Props) {
   const listRef = useRef<HTMLUListElement>(null);
@@ -58,7 +61,7 @@ export default function ArticleList({
 
   const virtualizer = useWindowVirtualizer({
     count: items.length,
-    estimateSize: () => ESTIMATED_CARD_HEIGHT,
+    estimateSize: () => ESTIMATED_HEIGHT[variant],
     overscan: OVERSCAN,
     scrollMargin,
     getItemKey: (index) => items[index].url,
@@ -69,7 +72,7 @@ export default function ArticleList({
   return (
     <ul
       ref={listRef}
-      className="relative divide-y divide-border"
+      className={`relative ${variant === "list" ? "divide-y divide-border" : ""}`}
       style={{ height: virtualizer.getTotalSize() }}
     >
       {rows.map((row) => {
@@ -86,6 +89,7 @@ export default function ArticleList({
               width: "100%",
               transform: `translateY(${row.start - scrollMargin}px)`,
             }}
+            variant={variant}
             article={a}
             bookmarked={isBookmarked(a.url)}
             read={isRead(a.url)}

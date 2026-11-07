@@ -27,7 +27,7 @@ deployment config, git history.
 **Browser**
 - Content-Security-Policy is generated at build time (`vite.config.ts`):
   no `'unsafe-inline'` scripts (the theme snippet is allowed by its SHA-256 hash),
-  images only from this site and Google's favicon service, API calls only to
+  images only over HTTPS (publishers' article images and source icons), API calls only to
   `VITE_API_BASE_URL`, no plugins/objects, HTTPS upgrade.
 - `public/_headers` adds anti-framing (clickjacking), nosniff, referrer and HSTS
   headers on hosts that support it. `frame-ancestors` cannot be set from a

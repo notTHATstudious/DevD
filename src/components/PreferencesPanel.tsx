@@ -5,6 +5,7 @@ import {
   type TopicKey,
   type TopicPreferences,
 } from "@/lib/preferences";
+import { toggleFeedView, useFeedView } from "@/lib/feedView";
 import StackPicker from "@/components/StackPicker";
 import { STACKS, type Profile } from "@/lib/stacks";
 
@@ -25,6 +26,7 @@ function setAll(prefs: TopicPreferences, keys: TopicKey[], value: boolean): Topi
 }
 
 export default function PreferencesPanel({ prefs, onChange, profile, onProfileChange }: Props) {
+  const asList = useFeedView() === "list";
   const enabledCount = TOPIC_KEYS.filter((k) => prefs[k]).length;
   // Fine-grained topics: one section per chosen stack, then the shared sections.
   const groups = [
@@ -35,7 +37,28 @@ export default function PreferencesPanel({ prefs, onChange, profile, onProfileCh
   return (
     <div className="space-y-8">
       <section>
-        <h2 className="mb-3 text-base font-semibold tracking-tight">Your track & stacks</h2>
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <h2 className="text-base font-semibold tracking-tight">Your track & stacks</h2>
+          <div className="flex shrink-0 items-center gap-1.5">
+            <span id="list-view-label" className="text-[11px] text-muted-foreground">
+              List view
+            </span>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={asList}
+              aria-labelledby="list-view-label"
+              onClick={toggleFeedView}
+              className={`relative h-4 w-7 rounded-full transition-colors ${asList ? "bg-foreground" : "bg-muted-foreground/40"}`}
+            >
+              <span
+                className={`absolute left-0.5 top-0.5 h-3 w-3 rounded-full bg-background shadow transition-transform ${
+                  asList ? "translate-x-3" : ""
+                }`}
+              />
+            </button>
+          </div>
+        </div>
         <StackPicker profile={profile} onChange={onProfileChange} />
       </section>
 

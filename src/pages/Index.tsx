@@ -27,6 +27,7 @@ import {
 import { filterByCategory, type CategoryKey } from "@/lib/categories";
 import { filterByProfile, profileTopics } from "@/lib/stacks";
 import { useProfile } from "@/lib/useProfile";
+import { useFeedView } from "@/lib/feedView";
 import OnboardingDialog from "@/components/OnboardingDialog";
 import { sortArticlesByRelevance } from "@/lib/ranking";
 import { calculateReadingStats } from "@/lib/stats";
@@ -63,6 +64,7 @@ const Index = () => {
   const debouncedQuery = useDebouncedValue(searchInput, 250);
   const [topicPrefs, setTopicPrefs] = useState<TopicPreferences>(getSavedPreferences);
   const { profile, answered, setProfile } = useProfile();
+  const view = useFeedView();
 
   // A stack chip that's no longer in your profile falls back to "All".
   useEffect(() => {
@@ -149,8 +151,7 @@ const Index = () => {
   );
 
   const isSearching = debouncedQuery.trim().length > 0;
-  const isFiltering = readFilter !== "all" || category !== "all";
-  const resetKey = `${tab}|${category}|${readFilter}|${debouncedQuery}|${activeTopicKeys.length}|${profile.stacks.join(",")}`;
+  const resetKey = `${tab}|${category}|${readFilter}|${debouncedQuery}|${activeTopicKeys.length}|${profile.stacks.join(",")}|${view}`;
   const errorMsg = error instanceof Error ? error.message : "Failed to load feed";
 
   const clearFilters = () => {
@@ -160,11 +161,9 @@ const Index = () => {
 
   const showListControls = tab === "feed" || tab === "saved";
   const showSearch = tab === "feed" ? hasArticles : tab === "saved" && count > 0;
-  const shownCount = tab === "feed" ? visibleFeed.length : visibleSaved.length;
-  // Count what your track/stacks/topics let through, not the whole download.
-  const totalCount = tab === "feed" ? rankedFeed.length : count;
 
   const listProps = {
+    variant: view,
     isBookmarked,
     isRead,
     onToggleBookmark: toggleBookmark,
@@ -266,11 +265,6 @@ const Index = () => {
                     </button>
                   ))}
                 </div>
-                {totalCount > 0 && (
-                  <span className="text-[11px] uppercase tracking-wider text-muted-foreground">
-                    {isSearching || isFiltering ? `${shownCount} of ${totalCount}` : `${totalCount} articles`}
-                  </span>
-                )}
               </div>
             </div>
           )}

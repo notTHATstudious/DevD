@@ -49,7 +49,7 @@ export default function PreferencesPanel({ prefs, onChange, profile, onProfileCh
               aria-checked={asList}
               aria-labelledby="list-view-label"
               onClick={toggleFeedView}
-              className={`relative h-4 w-7 rounded-full transition-colors ${asList ? "bg-foreground" : "bg-muted-foreground/40"}`}
+              className={`relative h-4 w-7 rounded-full transition-colors ${asList ? "bg-brand" : "bg-muted-foreground/40"}`}
             >
               <span
                 className={`absolute left-0.5 top-0.5 h-3 w-3 rounded-full bg-background shadow transition-transform ${

@@ -84,24 +84,26 @@ const ArticleCard = forwardRef<HTMLLIElement, Props>(function ArticleCard(
 
   if (variant === "card") {
     const actionButton =
-      "relative z-10 inline-flex h-8 w-8 items-center justify-center rounded-full transition hover:bg-muted";
+      "relative z-10 inline-flex h-9 w-9 items-center justify-center rounded-full transition hover:bg-muted";
     return (
-      <li ref={ref} style={style} data-index={dataIndex} className="pb-3">
+      <li ref={ref} style={style} data-index={dataIndex} className="pb-4">
         <article
-          className={`relative overflow-hidden rounded-2xl border border-border bg-card ${read ? "opacity-70" : ""}`}
+          className={`group relative overflow-hidden rounded-[20px] border border-border/60 bg-card shadow-card transition duration-200 hover:-translate-y-0.5 hover:shadow-lg ${
+            read ? "opacity-70" : ""
+          }`}
         >
-          <div className="flex items-center gap-2 px-3.5 py-2.5 text-xs">
+          <div className="flex items-center gap-2.5 px-4 pb-3 pt-3.5 text-[13px]">
             {faviconUrl && (
               <img
                 src={faviconUrl}
                 alt=""
-                className="h-5 w-5 shrink-0 rounded-full"
+                className="h-6 w-6 shrink-0 rounded-full bg-muted p-0.5"
                 onError={(e) => {
                   (e.target as HTMLImageElement).style.display = "none";
                 }}
               />
             )}
-            <span className="min-w-0 truncate font-medium">{article.source}</span>
+            <span className="min-w-0 truncate font-semibold">{article.source}</span>
             <time dateTime={new Date(article.publishedAt).toISOString()} className="ml-auto shrink-0 text-muted-foreground">
               {formatRelativeTime(article.publishedAt)}
             </time>
@@ -115,36 +117,38 @@ const ArticleCard = forwardRef<HTMLLIElement, Props>(function ArticleCard(
               decoding="async"
               referrerPolicy="no-referrer"
               onError={() => setImageFailed(true)}
-              className="aspect-[2/1] w-full bg-muted object-cover"
+              className="aspect-[16/9] w-full bg-muted object-cover"
             />
           )}
 
-          <div className="px-3.5 pb-2 pt-2.5">
-            <h2 className={`text-[17px] leading-snug tracking-tight ${read ? "font-medium text-muted-foreground" : "font-semibold"}`}>
+          <div className="px-4 pb-2.5 pt-3.5">
+            <h2
+              className={`text-[19px] font-bold leading-[1.3] tracking-tight transition-colors group-hover:text-brand ${
+                read ? "text-muted-foreground" : ""
+              }`}
+            >
               {safeUrl ? (
                 // The link covers the whole card; the buttons sit above it.
-                <a
-                  href={safeUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={handleOpen}
-                  className="after:absolute after:inset-0 hover:underline hover:underline-offset-4"
-                >
+                <a href={safeUrl} target="_blank" rel="noopener noreferrer" onClick={handleOpen} className="after:absolute after:inset-0">
                   {article.title}
                 </a>
               ) : (
                 article.title
               )}
             </h2>
-            {!image && article.description && (
-              <p className="mt-1.5 line-clamp-2 text-sm text-muted-foreground">{article.description}</p>
-            )}
-            {article.topics && article.topics.length > 0 && (
-              <p className="mt-1.5 truncate text-xs capitalize text-muted-foreground">
-                {article.topics.slice(0, 2).map((t) => t.replace(/_/g, " ")).join(" · ")}
+            {article.description && (
+              <p className={`mt-2 text-[15px] leading-relaxed text-muted-foreground ${image ? "line-clamp-2" : "line-clamp-3"}`}>
+                {article.description}
               </p>
             )}
-            <div className="mt-1 flex items-center text-xs text-muted-foreground">
+            {article.topics && article.topics.length > 0 && (
+              <p className="mt-2.5 flex flex-wrap gap-x-2.5 gap-y-1 text-[13px] font-medium text-brand">
+                {article.topics.slice(0, 3).map((t) => (
+                  <span key={t}>#{t.replace(/_/g, "")}</span>
+                ))}
+              </p>
+            )}
+            <div className="mt-2 flex items-center text-[13px] text-muted-foreground">
               <span>
                 {read ? "Read · " : ""}
                 {readTime} min read
@@ -155,13 +159,13 @@ const ArticleCard = forwardRef<HTMLLIElement, Props>(function ArticleCard(
                 onClick={() => onToggleBookmark(article)}
                 aria-label={bookmarked ? "Remove bookmark" : "Save article"}
                 aria-pressed={bookmarked}
-                className={`${actionButton} ml-auto ${bookmarked ? "text-foreground" : ""}`}
+                className={`${actionButton} ml-auto ${bookmarked ? "text-brand" : ""}`}
               >
-                <Bookmark className={`h-4 w-4 ${bookmarked ? "fill-current" : ""}`} />
+                <Bookmark className={`h-[18px] w-[18px] ${bookmarked ? "fill-current" : ""}`} />
               </button>
               {safeUrl && (
                 <button type="button" onClick={handleShare} aria-label="Share article" className={actionButton}>
-                  <Share2 className="h-4 w-4" />
+                  <Share2 className="h-[18px] w-[18px]" />
                 </button>
               )}
             </div>

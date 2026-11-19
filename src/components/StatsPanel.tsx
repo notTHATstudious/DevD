@@ -13,7 +13,7 @@ type Props = {
 
 function Tile({ label, value, wide }: { label: string; value: React.ReactNode; wide?: boolean }) {
   return (
-    <div className={`rounded-xl border border-border bg-muted/10 p-4 ${wide ? "col-span-2" : ""}`}>
+    <div className={`rounded-2xl border border-border/60 bg-card p-4 shadow-card ${wide ? "col-span-2" : ""}`}>
       <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{label}</p>
       <p className="mt-1 truncate text-2xl font-bold">{value}</p>
     </div>
@@ -49,7 +49,7 @@ export default function StatsPanel({ stats, readHistoryCount, dataUpdatedAt, onC
         />
       </div>
 
-      <div className="space-y-3 rounded-xl border border-border p-4 text-xs text-muted-foreground">
+      <div className="space-y-3 rounded-2xl border border-border/60 bg-card p-4 text-xs text-muted-foreground shadow-card">
         <div className="flex items-center justify-between">
           <span>Feed last loaded</span>
           <span className="font-mono">

@@ -29,10 +29,10 @@ export default function CategoryChips({ value, onChange, stacks }: Props) {
             role="tab"
             aria-selected={active}
             onClick={() => onChange(chip.key)}
-            className={`shrink-0 whitespace-nowrap rounded-full border px-3 py-1 text-xs font-medium transition ${
+            className={`shrink-0 whitespace-nowrap rounded-full border px-3.5 py-1.5 text-[13px] font-medium transition ${
               active
                 ? "border-foreground bg-foreground text-background"
-                : "border-border bg-muted/40 text-muted-foreground hover:text-foreground"
+                : "border-border/70 bg-card text-foreground/75 hover:border-border hover:text-foreground"
             }`}
           >
             {chip.label}

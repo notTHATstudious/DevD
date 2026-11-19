@@ -33,7 +33,7 @@ const STARTERS = [
 ];
 
 const chip =
-  "rounded-full border border-border bg-card px-3 py-1 text-xs transition hover:bg-muted disabled:opacity-50";
+  "rounded-full border border-border/70 bg-card px-3 py-1.5 text-[13px] transition hover:border-brand/50 hover:text-brand disabled:opacity-50";
 
 let nextId = 0;
 const newId = () => `${Date.now()}-${nextId++}`;
@@ -139,7 +139,7 @@ const FloatingAssistant = () => {
     return (
       <button
         onClick={() => setIsOpen(true)}
-        className="fixed bottom-6 right-6 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-foreground text-background shadow-lg transition hover:scale-105 active:scale-95"
+        className="fixed bottom-6 right-6 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-brand text-brand-foreground shadow-lg shadow-brand/30 transition hover:scale-105 active:scale-95"
         aria-label="Open Assistant"
       >
         <MessageSquare className="h-6 w-6" />
@@ -153,17 +153,17 @@ const FloatingAssistant = () => {
     <div
       role="dialog"
       aria-label="DevD Assistant"
-      className="fixed bottom-4 right-4 z-50 flex h-[calc(100dvh-32px)] max-h-[800px] w-[calc(100vw-32px)] flex-col overflow-hidden rounded-2xl border border-border bg-background shadow-2xl sm:bottom-6 sm:right-6 sm:h-[640px] sm:w-[420px]"
+      className="fixed bottom-4 right-4 z-50 flex h-[calc(100dvh-32px)] max-h-[800px] w-[calc(100vw-32px)] flex-col overflow-hidden rounded-2xl border border-border/70 bg-card shadow-2xl sm:bottom-6 sm:right-6 sm:h-[640px] sm:w-[420px] lg:bottom-4 lg:right-4 lg:top-[76px] lg:h-auto lg:max-h-none lg:w-[440px] lg:rounded-3xl"
     >
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-border bg-muted/30 px-4 py-3 backdrop-blur-md">
+      <div className="flex items-center justify-between border-b border-border/70 px-4 py-3">
         <div className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-foreground text-background">
+          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-brand text-brand-foreground">
             <Bot className="h-5 w-5" />
           </div>
           <div>
-            <h2 className="text-sm font-semibold tracking-tight">DevD Assistant</h2>
-            <p className="text-[10px] text-muted-foreground">Searches 120+ dev, big tech & gadget sources</p>
+            <h2 className="text-[15px] font-bold tracking-tight">DevD Assistant</h2>
+            <p className="text-[11px] text-muted-foreground">Searches 120+ dev, big tech & gadget sources</p>
           </div>
         </div>
         <div className="flex items-center gap-1">
@@ -188,10 +188,10 @@ const FloatingAssistant = () => {
       </div>
 
       {/* Main chat area */}
-      <div className="flex-1 overflow-y-auto bg-background/50 p-4">
+      <div className="flex-1 overflow-y-auto p-4">
         {messages.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center text-center">
-            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-foreground text-background">
+            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-soft text-brand">
               <Sparkles className="h-6 w-6" />
             </div>
             <h3 className="mb-2 text-lg font-semibold tracking-tight">What do you want to read about?</h3>
@@ -214,17 +214,17 @@ const FloatingAssistant = () => {
                 <div className={`flex max-w-[95%] gap-2 ${msg.role === "user" ? "flex-row-reverse" : "flex-row"}`}>
                   <div
                     className={`mt-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${
-                      msg.role === "user" ? "bg-muted text-foreground" : "bg-foreground text-background"
+                      msg.role === "user" ? "bg-muted text-foreground" : "bg-brand text-brand-foreground"
                     }`}
                   >
                     {msg.role === "user" ? <User className="h-3 w-3" /> : <Bot className="h-3 w-3" />}
                   </div>
                   <div className="flex min-w-0 flex-col gap-2">
                     <div
-                      className={`rounded-2xl px-3 py-2 text-sm ${
+                      className={`rounded-2xl px-3.5 py-2 text-[14px] leading-relaxed ${
                         msg.role === "user"
-                          ? "rounded-tr-sm bg-muted text-foreground"
-                          : "rounded-tl-sm border border-border/50 bg-transparent text-foreground shadow-sm"
+                          ? "rounded-tr-md bg-brand text-brand-foreground"
+                          : "rounded-tl-md bg-muted text-foreground"
                       }`}
                     >
                       {msg.didYouMean && (
@@ -300,10 +300,10 @@ const FloatingAssistant = () => {
       </div>
 
       {/* Input area */}
-      <div className="border-t border-border bg-background p-3">
+      <div className="border-t border-border/70 p-3">
         <form
           onSubmit={onSubmit}
-          className="relative flex items-center overflow-hidden rounded-full border border-input bg-card shadow-sm transition-colors focus-within:border-foreground focus-within:ring-1 focus-within:ring-foreground"
+          className="relative flex items-center overflow-hidden rounded-full border border-transparent bg-muted transition focus-within:border-border focus-within:bg-card focus-within:ring-4 focus-within:ring-brand/15"
         >
           <input
             ref={inputRef}
@@ -313,14 +313,14 @@ const FloatingAssistant = () => {
             placeholder="e.g. Pixel news this week, k8s tutorials…"
             maxLength={200}
             aria-label="Search query"
-            className="w-full bg-transparent py-2.5 pl-4 pr-12 text-sm outline-none placeholder:text-muted-foreground disabled:opacity-50"
+            className="w-full bg-transparent py-3 pl-4 pr-12 text-[14px] outline-none placeholder:text-muted-foreground disabled:opacity-50"
             disabled={searchMutation.isPending}
           />
           <button
             type="submit"
             disabled={!input.trim() || searchMutation.isPending}
             aria-label="Send"
-            className="absolute right-1 flex h-8 w-8 items-center justify-center rounded-full bg-foreground text-background transition hover:bg-foreground/90 disabled:opacity-50"
+            className="absolute right-1.5 flex h-8 w-8 items-center justify-center rounded-full bg-brand text-brand-foreground transition hover:opacity-90 disabled:opacity-40"
           >
             <Send className="h-3.5 w-3.5" />
           </button>

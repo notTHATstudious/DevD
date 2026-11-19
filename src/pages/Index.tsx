@@ -44,7 +44,7 @@ const TABS: { key: Tab; label: string; icon: typeof Newspaper }[] = [
 const HEADINGS: Record<Tab, { title: string; subtitle: string }> = {
   feed: {
     title: "Today's feed",
-    subtitle: "Engineering blogs, big tech newsrooms and gadget news in one place.",
+    subtitle: "The best of engineering and tech, curated daily.",
   },
   saved: { title: "Saved articles", subtitle: "Articles you've bookmarked on this device." },
   preferences: { title: "Your topics", subtitle: "Choose what shows up in your feed." },
@@ -174,7 +174,6 @@ const Index = () => {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <AppHeader
-        lastUpdated={isPlaceholderData ? undefined : feedData?.lastUpdated}
         refreshing={isFetching}
         onRefresh={() => refetch()}
         onPlay={() => {
@@ -191,20 +190,20 @@ const Index = () => {
         }}
       />
 
-      <div className="mx-auto max-w-2xl px-4 py-6 sm:py-10">
+      <div className="mx-auto max-w-2xl px-4 py-6 sm:py-10 lg:max-w-5xl lg:px-8">
         <section className="mb-6">
-          <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">{HEADINGS[tab].title}</h1>
-          <p className="mt-1.5 text-sm text-muted-foreground">{HEADINGS[tab].subtitle}</p>
+          <h1 className="text-[32px] font-bold leading-tight tracking-tight sm:text-[40px]">{HEADINGS[tab].title}</h1>
+          <p className="mt-1.5 text-[15px] text-muted-foreground">{HEADINGS[tab].subtitle}</p>
 
-          <nav aria-label="Sections" className="mt-5 grid grid-cols-4 rounded-full border border-border p-0.5">
+          <nav aria-label="Sections" className="mt-6 grid grid-cols-4 gap-1 rounded-full bg-muted p-1 lg:max-w-xl">
             {TABS.map(({ key, label, icon: Icon }) => (
               <button
                 key={key}
                 type="button"
                 aria-current={tab === key ? "page" : undefined}
                 onClick={() => setTab(key)}
-                className={`inline-flex items-center justify-center gap-1.5 rounded-full px-2 py-1.5 text-xs font-medium transition ${
-                  tab === key ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"
+                className={`inline-flex items-center justify-center gap-1.5 rounded-full px-2 py-2 text-[13px] font-semibold transition ${
+                  tab === key ? "bg-brand text-brand-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
                 }`}
               >
                 <Icon className="h-3.5 w-3.5" />
@@ -212,7 +211,7 @@ const Index = () => {
                 {key === "saved" && count > 0 && (
                   <span
                     className={`inline-flex min-w-[1.1rem] items-center justify-center rounded-full px-1 text-[10px] font-semibold ${
-                      tab === "saved" ? "bg-background text-foreground" : "bg-muted text-foreground"
+                      tab === "saved" ? "bg-white/25 text-brand-foreground" : "bg-background text-foreground"
                     }`}
                   >
                     {count}
@@ -223,17 +222,17 @@ const Index = () => {
           </nav>
 
           {showListControls && (
-            <div className="mt-4 space-y-3">
+            <div className="mt-5 space-y-3">
               {showSearch && (
                 <div className="relative">
-                  <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                   <input
                     type="search"
                     value={searchInput}
                     onChange={(e) => setSearchInput(e.target.value)}
                     placeholder="Search title, source, author…"
                     aria-label="Search articles"
-                    className="w-full rounded-lg border border-input bg-background py-2.5 pl-10 pr-10 text-sm outline-none transition focus:border-foreground focus:ring-1 focus:ring-foreground"
+                    className="w-full rounded-xl border border-transparent bg-muted py-3 pl-11 pr-10 text-[15px] outline-none transition placeholder:text-muted-foreground focus:border-border focus:bg-card focus:ring-4 focus:ring-brand/15"
                   />
                   {searchInput && (
                     <button
@@ -251,14 +250,16 @@ const Index = () => {
               <CategoryChips value={category} onChange={setCategory} stacks={profile.stacks} />
 
               <div className="flex items-center justify-between gap-3">
-                <div className="inline-flex rounded-full border border-border p-0.5">
+                <div className="inline-flex rounded-full bg-muted p-1">
                   {(["all", "unread", "read"] as const).map((f) => (
                     <button
                       key={f}
                       type="button"
                       onClick={() => setReadFilter(f)}
-                      className={`rounded-full px-3 py-1 text-xs font-medium capitalize transition ${
-                        readFilter === f ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"
+                      className={`rounded-full px-3.5 py-1 text-[13px] font-medium capitalize transition ${
+                        readFilter === f
+                          ? "bg-card text-foreground shadow-sm dark:bg-accent"
+                          : "text-muted-foreground hover:text-foreground"
                       }`}
                     >
                       {f}
@@ -312,7 +313,7 @@ const Index = () => {
               )}
 
               {isError && !hasArticles && (
-                <div className="rounded-xl border border-border bg-muted/40 p-4 text-sm">
+                <div className="rounded-2xl bg-card p-4 text-sm shadow-card">
                   <p className="font-medium">Couldn't load the feed.</p>
                   <p className="mt-1 text-muted-foreground">{errorMsg}</p>
                   <button
@@ -367,21 +368,25 @@ const Index = () => {
           )}
 
           {tab === "preferences" && (
+            <div className="lg:max-w-3xl">
             <PreferencesPanel
               prefs={topicPrefs}
               onChange={handlePrefsChange}
               profile={profile}
               onProfileChange={setProfile}
             />
+            </div>
           )}
 
           {tab === "stats" && (
+            <div className="lg:max-w-3xl">
             <StatsPanel
               stats={stats}
               readHistoryCount={readEntries.length}
               dataUpdatedAt={isPlaceholderData ? undefined : dataUpdatedAt}
               onClearHistory={clearHistory}
             />
+            </div>
           )}
         </main>
 
@@ -402,7 +407,7 @@ function Notice({
   return (
     <div
       role="status"
-      className="mb-4 flex items-center justify-between gap-3 rounded-lg border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground"
+      className="mb-4 flex items-center justify-between gap-3 rounded-xl bg-brand-soft px-3.5 py-2.5 text-[13px] text-foreground/80"
     >
       <span>{children}</span>
       {action && (

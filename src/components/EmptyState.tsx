@@ -7,7 +7,7 @@ type Props = {
 
 export default function EmptyState({ title, description, actionLabel, onAction }: Props) {
   return (
-    <div className="rounded-xl border border-dashed border-border p-10 text-center">
+    <div className="rounded-2xl border border-border/60 bg-card p-10 text-center shadow-card">
       <p className="text-base font-medium">{title}</p>
       {description && <p className="mt-2 text-sm text-muted-foreground">{description}</p>}
       {actionLabel && onAction && (

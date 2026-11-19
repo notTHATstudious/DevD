@@ -6,39 +6,45 @@
    All tokens in HSL. Do not use raw colors in components. */
 
 @layer base {
+  /* Black & white base with one DEV-style indigo accent ("brand"). */
   :root {
-    --background: 0 0% 100%;
-    --foreground: 0 0% 7%;
+    --background: 240 11% 97%;
+    --foreground: 240 6% 10%;
 
-    --surface: 0 0% 99%;
-    --surface-muted: 0 0% 96%;
+    --surface: 0 0% 100%;
+    --surface-muted: 240 6% 94%;
 
     --card: 0 0% 100%;
-    --card-foreground: 0 0% 7%;
+    --card-foreground: 240 6% 10%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 7%;
+    --popover-foreground: 240 6% 10%;
 
-    --primary: 0 0% 7%;
+    --primary: 240 6% 10%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 0 0% 96%;
-    --secondary-foreground: 0 0% 7%;
+    --secondary: 240 6% 94%;
+    --secondary-foreground: 240 6% 10%;
 
-    --muted: 0 0% 96%;
-    --muted-foreground: 0 0% 40%;
+    --muted: 240 6% 93%;
+    --muted-foreground: 240 4% 44%;
 
-    --accent: 0 0% 94%;
-    --accent-foreground: 0 0% 7%;
+    --accent: 240 6% 90%;
+    --accent-foreground: 240 6% 10%;
+
+    --brand: 234 72% 55%;
+    --brand-foreground: 0 0% 100%;
+    --brand-soft: 234 90% 96%;
 
     --destructive: 0 0% 20%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 0 0% 90%;
-    --input: 0 0% 90%;
-    --ring: 0 0% 7%;
+    --border: 240 6% 89%;
+    --input: 240 6% 89%;
+    --ring: 234 72% 55%;
 
-    --radius: 0.75rem;
+    --radius: 0.875rem;
+    --shadow-card: 0 1px 2px rgb(0 0 0 / 0.04), 0 8px 24px -12px rgb(0 0 0 / 0.12);
 
     --sidebar-background: 0 0% 98%;
     --sidebar-foreground: 0 0% 26%;
@@ -51,36 +57,42 @@
   }
 
   .dark {
-    --background: 0 0% 6%;
+    --background: 0 0% 0%;
     --foreground: 0 0% 96%;
 
-    --surface: 0 0% 8%;
-    --surface-muted: 0 0% 12%;
+    --surface: 240 4% 10%;
+    --surface-muted: 240 3% 15%;
 
-    --card: 0 0% 8%;
+    --card: 240 4% 10%;
     --card-foreground: 0 0% 96%;
 
-    --popover: 0 0% 8%;
+    --popover: 240 4% 10%;
     --popover-foreground: 0 0% 96%;
 
     --primary: 0 0% 96%;
-    --primary-foreground: 0 0% 6%;
+    --primary-foreground: 0 0% 4%;
 
-    --secondary: 0 0% 14%;
+    --secondary: 240 3% 15%;
     --secondary-foreground: 0 0% 96%;
 
-    --muted: 0 0% 14%;
-    --muted-foreground: 0 0% 62%;
+    --muted: 240 3% 15%;
+    --muted-foreground: 240 4% 62%;
 
-    --accent: 0 0% 18%;
+    --accent: 240 3% 20%;
     --accent-foreground: 0 0% 96%;
+
+    --brand: 239 84% 67%;
+    --brand-foreground: 0 0% 100%;
+    --brand-soft: 239 40% 18%;
 
     --destructive: 0 0% 90%;
     --destructive-foreground: 0 0% 6%;
 
-    --border: 0 0% 18%;
-    --input: 0 0% 18%;
-    --ring: 0 0% 90%;
+    --border: 240 3% 17%;
+    --input: 240 3% 17%;
+    --ring: 239 84% 67%;
+
+    --shadow-card: 0 0 0 1px rgb(255 255 255 / 0.04);
 
     --sidebar-background: 0 0% 8%;
     --sidebar-foreground: 0 0% 92%;
@@ -105,15 +117,18 @@
   }
 
   body {
-    font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI Variable", "Segoe UI",
       Roboto, "Helvetica Neue", Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
   }
 
   h1,
   h2,
   h3 {
-    font-family: "Georgia", "Times New Roman", ui-serif, serif;
-    letter-spacing: -0.01em;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI Variable Display", "Segoe UI",
+      Roboto, "Helvetica Neue", Arial, sans-serif;
+    letter-spacing: -0.022em;
   }
 }
 
@@ -123,6 +138,15 @@
   }
   .safe-bottom {
     padding-bottom: max(1rem, env(safe-area-inset-bottom));
+  }
+  /* Frosted glass, as on Apple/DEV headers. */
+  .glass {
+    background-color: hsl(var(--background) / 0.72);
+    -webkit-backdrop-filter: saturate(180%) blur(20px);
+    backdrop-filter: saturate(180%) blur(20px);
+  }
+  .shadow-card {
+    box-shadow: var(--shadow-card);
   }
   .no-scrollbar {
     scrollbar-width: none;

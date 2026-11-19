@@ -21,12 +21,12 @@ export default function StackPicker({ profile, onChange }: Props) {
               type="button"
               aria-pressed={active}
               onClick={() => onChange(switchTrack(profile, t.key))}
-              className={`rounded-xl border px-2 py-2.5 text-center transition ${
-                active ? "border-foreground bg-foreground text-background" : "border-border hover:bg-muted"
+              className={`rounded-2xl border px-2 py-3 text-center transition ${
+                active ? "border-brand bg-brand text-brand-foreground shadow-sm" : "border-border/70 bg-card hover:border-border"
               }`}
             >
               <span className="block text-sm font-semibold">{t.label}</span>
-              <span className={`block text-[10px] ${active ? "text-background/70" : "text-muted-foreground"}`}>
+              <span className={`block text-[10px] ${active ? "text-brand-foreground/80" : "text-muted-foreground"}`}>
                 {t.hint}
               </span>
             </button>

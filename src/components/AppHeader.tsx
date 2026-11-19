@@ -36,7 +36,7 @@ export default function AppHeader({ refreshing, onRefresh, onPlay }: Props) {
             D
           </div>
           <div className="min-w-0">
-            <p className="text-[15px] font-bold leading-tight tracking-tight">DailyD</p>
+            <p className="text-[15px] font-bold leading-tight tracking-tight"><span className="text-brand">D</span>ailyD</p>
             {/* Only shown while a refresh runs; the exact time lives in Stats. */}
             <p className="truncate text-[11px] leading-tight text-muted-foreground empty:hidden" aria-live="polite">
               {refreshing ? "Updating…" : ""}

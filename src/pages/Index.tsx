@@ -2,7 +2,7 @@ import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { BarChart3, Bookmark, Newspaper, Search, SlidersHorizontal, X } from "lucide-react";
 import { type Article } from "@/lib/feed";
 import { filterArticles } from "@/lib/search";
-import { filterArticlesByReadState, type ReadFilter } from "@/lib/readState";
+import { filterArticlesByReadState, normalizeArticleUrl, type ReadFilter } from "@/lib/readState";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { useBookmarks } from "@/lib/useBookmarks";
 import { useReadState } from "@/lib/useReadState";
@@ -56,6 +56,25 @@ const SLOW_LOAD_HINT_MS = 4000;
 
 const EMPTY: Article[] = [];
 
+const HIDE_READ_KEY = "dailyd_hide_read_before";
+
+function loadHideReadBefore(): number {
+  try {
+    const n = Number(localStorage.getItem(HIDE_READ_KEY));
+    return Number.isFinite(n) ? n : 0;
+  } catch {
+    return 0;
+  }
+}
+
+function saveHideReadBefore(ts: number): void {
+  try {
+    localStorage.setItem(HIDE_READ_KEY, String(ts));
+  } catch {
+    // ignore
+  }
+}
+
 const Index = () => {
   const [tab, setTab] = useState<Tab>("feed");
   const [searchInput, setSearchInput] = useState("");
@@ -90,6 +109,20 @@ const Index = () => {
   const { bookmarks, count, isBookmarked, toggleBookmark } = useBookmarks();
   const { readEntries, isRead, markRead, clearHistory } = useReadState();
 
+  // Articles read before your last tap on Refresh are left out of "All"
+  // (still under "Read"). Only the Refresh button changes this — not opening
+  // an article, going back, or the page reloading.
+  const [hideReadBefore, setHideReadBefore] = useState(loadHideReadBefore);
+  const readAtLoad = useMemo(
+    () => new Set(readEntries.filter((e) => e.readAt <= hideReadBefore).map((e) => e.key)),
+    [readEntries, hideReadBefore],
+  );
+  const snapshotReadState = () => {
+    const now = Date.now();
+    setHideReadBefore(now);
+    saveHideReadBefore(now);
+  };
+
   const [slowLoad, setSlowLoad] = useState(false);
   // Mini game shown while the server wakes up; stays until the player chooses "Go in".
   const [gameOpen, setGameOpen] = useState(false);
@@ -117,13 +150,15 @@ const Index = () => {
 
   // Topic preferences → relevance ranking → category chip.
   const rankedFeed = useMemo(
-    () =>
-      sortArticlesByRelevance(
+    () => {
+      const ranked = sortArticlesByRelevance(
         filterByTopicPreferences(filterByProfile(articles, profile), topicPrefs),
         activeTopicKeys,
         Date.now(),
         profileTopics(profile),
-      ),
+      );
+      return ranked;
+    },
     [articles, profile, topicPrefs, activeTopicKeys],
   );
   const categoryFeed = useMemo(() => filterByCategory(rankedFeed, category), [rankedFeed, category]);
@@ -136,10 +171,11 @@ const Index = () => {
   // Then search, then read/unread.
   const searchedFeed = useMemo(() => filterArticles(categoryFeed, debouncedQuery), [categoryFeed, debouncedQuery]);
   const searchedSaved = useMemo(() => filterArticles(categorySaved, debouncedQuery), [categorySaved, debouncedQuery]);
-  const visibleFeed = useMemo(
-    () => filterArticlesByReadState(searchedFeed, readFilter, isRead),
-    [searchedFeed, readFilter, isRead],
-  );
+  const visibleFeed = useMemo(() => {
+    const list = filterArticlesByReadState(searchedFeed, readFilter, isRead);
+    if (readFilter !== "all") return list;
+    return list.filter((a) => !readAtLoad.has(normalizeArticleUrl(a.url)));
+  }, [searchedFeed, readFilter, isRead, readAtLoad]);
   const visibleSaved = useMemo(
     () => filterArticlesByReadState(searchedSaved, readFilter, isRead),
     [searchedSaved, readFilter, isRead],
@@ -175,7 +211,10 @@ const Index = () => {
     <div className="min-h-screen bg-background text-foreground">
       <AppHeader
         refreshing={isFetching}
-        onRefresh={() => refetch()}
+        onRefresh={() => {
+          snapshotReadState();
+          refetch();
+        }}
         onPlay={() => {
           // The header button toggles the game.
           if (gameOpen && tab === "feed") {

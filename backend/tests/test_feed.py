@@ -354,3 +354,10 @@ def test_cap_reserves_articles_for_each_stack() -> None:
     result = select_articles(busy + quiet)
     assert len(result) == MAX_TOTAL_ARTICLES
     assert result[-1]["topics"] == ["svelte"]
+
+
+# 17. QA topics
+def test_qa_topics() -> None:
+    assert {"test_automation", "selenium"} <= set(get_matched_topics("Selenium WebDriver test automation tips", ""))
+    assert "playwright" in get_matched_topics("Playwright 1.50 released", "")
+    assert "cypress" not in get_matched_topics("A walk under the cypress trees", "")

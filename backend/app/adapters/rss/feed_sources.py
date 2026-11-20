@@ -212,4 +212,20 @@ FEED_SOURCES = [
     {"name": "Smashing Magazine", "url": "https://www.smashingmagazine.com/feed/", "is_tutorial": True, "topics": ["web_platform"]},
     {"name": "Frontend Focus", "url": "https://cprss.s3.amazonaws.com/frontendfoc.us.xml", "is_news": True, "topics": ["web_platform"]},
     {"name": "JavaScript Weekly", "url": "https://cprss.s3.amazonaws.com/javascriptweekly.com.xml", "is_news": True},
+
+    # ---------- QA & Test Automation ----------
+    {"name": "Google Testing Blog", "url": "https://testing.googleblog.com/feeds/posts/default", "is_official": True, "topics": ["testing"]},
+    {"name": "Selenium Releases", "url": "https://github.com/SeleniumHQ/selenium/releases.atom", "is_official": True, "topics": ["test_automation", "selenium"]},
+    {"name": "Playwright Releases", "url": "https://github.com/microsoft/playwright/releases.atom", "is_official": True, "topics": ["test_automation", "playwright"]},
+    {"name": "Appium Releases", "url": "https://github.com/appium/appium/releases.atom", "is_official": True, "topics": ["test_automation", "appium"]},
+    {"name": "Cypress Blog", "url": "https://www.cypress.io/blog/rss.xml", "is_official": True, "topics": ["test_automation", "cypress"]},
+    {"name": "Test Guild", "url": "https://testguild.com/feed/", "is_tutorial": True, "topics": ["test_automation"]},
+    {"name": "BrowserStack Blog", "url": "https://www.browserstack.com/blog/feed/", "is_tutorial": True, "topics": ["test_automation"]},
+    {"name": "Applitools Blog", "url": "https://applitools.com/blog/feed/", "is_tutorial": True, "topics": ["test_automation"]},
+    {"name": "Dev.to", "url": "https://dev.to/feed/tag/selenium", "is_community": True, "topics": ["test_automation", "selenium"]},
+    {"name": "Dev.to", "url": "https://dev.to/feed/tag/playwright", "is_community": True, "topics": ["test_automation", "playwright"]},
+    {"name": "Dev.to", "url": "https://dev.to/feed/tag/cypress", "is_community": True, "topics": ["test_automation", "cypress"]},
+    {"name": "Dev.to", "url": "https://dev.to/feed/tag/qa", "is_community": True, "topics": ["test_automation"]},
+    {"name": "Medium", "url": "https://medium.com/feed/tag/test-automation", "is_community": True, "topics": ["test_automation"]},
+    {"name": "Reddit", "url": "https://www.reddit.com/r/softwaretesting/.rss", "is_community": True, "topics": ["testing"]},
 ]

@@ -91,6 +91,9 @@ SYNONYMS: Dict[str, List[str]] = {
     "svelte": ["sveltekit"],
     "react": ["nextjs", "jsx"],
     "css": ["tailwind", "web"],
+    "e2e": ["playwright", "cypress", "selenium"],
+    "qa": ["testing", "automation"],
+    "selenium": ["webdriver"],
 }
 
 # Phrases that collapse to one token before tokenizing.

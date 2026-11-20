@@ -44,6 +44,9 @@ Saved in the browser as `dailyd_profile`; changeable in Topics.
 | Frontend | React · Next.js, Angular, Vue · Nuxt, Svelte, Web basics (HTML/CSS/TypeScript) |
 | Full-stack | Any mix of the above |
 
+Shared groups for every track include **QA & Test Automation** (Selenium,
+Playwright, Cypress, Appium, general testing), with its own "QA & Testing" chip.
+
 Rules (`src/lib/stacks.ts`): articles that belong only to stacks you didn't pick
 are hidden; shared topics (cloud, AI, security, big tech) and untagged articles
 stay; your stacks rank first; the assistant boosts your stacks' topics.

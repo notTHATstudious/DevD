@@ -46,6 +46,11 @@ export const TOPICS = {
   svelte: "Svelte",
   typescript: "TypeScript",
   web_platform: "HTML & CSS",
+  test_automation: "Test Automation",
+  selenium: "Selenium",
+  playwright: "Playwright",
+  cypress: "Cypress",
+  appium: "Appium",
 } as const;
 
 export type TopicKey = keyof typeof TOPICS;
@@ -68,7 +73,11 @@ export const TOPIC_GROUPS: { label: string; keys: TopicKey[] }[] = [
   { label: "AI", keys: ["ai_engineering", "llms", "openai", "anthropic"] },
   {
     label: "Engineering practice",
-    keys: ["system_design", "software_architecture", "backend_engineering", "security", "performance", "testing"],
+    keys: ["system_design", "software_architecture", "backend_engineering", "security", "performance"],
+  },
+  {
+    label: "QA & Test Automation",
+    keys: ["testing", "test_automation", "selenium", "playwright", "cypress", "appium"],
   },
   {
     label: "Big Tech & Gadgets",
@@ -164,6 +173,11 @@ export const TOPIC_REGEX_MAP: Record<TopicKey, RegExp> = {
   vue: /\b(vue(\.?js)?|nuxt|pinia)\b/i,
   svelte: /\b(svelte(kit)?)\b/i,
   typescript: /\b(typescript)\b/i,
+  test_automation: /\b(test automation|automated tests?|e2e|end-to-end tests?|quality assurance|sdet|qa engineers?)\b|\bQA\b/i,
+  selenium: /\b(selenium|webdriver(io)?)\b/i,
+  playwright: /\bplaywright\b/i,
+  cypress: /\bCypress\b/,
+  appium: /\bappium\b/i,
   web_platform: /\b(css|html|tailwind|sass|flexbox|accessibility|a11y|web vitals|webassembly|wasm|browsers?)\b/i,
 };
 

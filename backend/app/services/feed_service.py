@@ -47,6 +47,8 @@ STACK_TOPIC_GROUPS = [
     {"vue"},
     {"svelte"},
     {"typescript", "web_platform"},
+    # Not a stack, but reserved the same way so QA posts aren't crowded out.
+    {"testing", "test_automation", "selenium", "playwright", "cypress", "appium"},
 ]
 MAX_DESCRIPTION_CHARS = 300
 
@@ -107,6 +109,12 @@ TOPIC_REGEX_MAP = {
     "vue": re.compile(r"\b(vue(\.?js)?|nuxt|pinia)\b", re.IGNORECASE),
     "svelte": re.compile(r"\b(svelte(kit)?)\b", re.IGNORECASE),
     "typescript": re.compile(r"\b(typescript)\b", re.IGNORECASE),
+    # QA & test automation (shared, like cloud/AI — visible on every track).
+    "test_automation": re.compile(r"\b(test automation|automated tests?|e2e|end-to-end tests?|quality assurance|sdet|qa engineers?)\b|\bQA\b", re.IGNORECASE),
+    "selenium": re.compile(r"\b(selenium|webdriver(io)?)\b", re.IGNORECASE),
+    "playwright": re.compile(r"\bplaywright\b", re.IGNORECASE),
+    "cypress": re.compile(r"\bCypress\b"),
+    "appium": re.compile(r"\bappium\b", re.IGNORECASE),
     "web_platform": re.compile(r"\b(css|html|tailwind|sass|flexbox|accessibility|a11y|web vitals|webassembly|wasm|browsers?)\b", re.IGNORECASE),
 }
 

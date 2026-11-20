@@ -11,6 +11,7 @@ export const CATEGORIES = [
   { key: "ai", label: "AI" },
   { key: "cloud", label: "Cloud" },
   { key: "devops", label: "DevOps" },
+  { key: "qa", label: "QA & Testing" },
   { key: "gadgets", label: "Phones & Laptops" },
   { key: "big_tech", label: "Big Tech" },
 ] as const;
@@ -24,6 +25,7 @@ const TOPIC_CATEGORIES: Partial<Record<CategoryKey, string[]>> = {
   devops: ["devops", "ci_cd", "docker", "kubernetes"],
   gadgets: ["apple", "android", "smartphones", "laptops"],
   big_tech: ["big_tech"],
+  qa: ["testing", "test_automation", "selenium", "playwright", "cypress", "appium"],
 };
 
 export function matchesCategory(article: Article, category: CategoryKey): boolean {

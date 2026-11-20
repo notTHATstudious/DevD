@@ -22,6 +22,8 @@ const SYNONYMS: Record<string, string[]> = {
   golang: ["go"],
   node: ["nodejs"],
   dotnet: ["net", "csharp"],
+  e2e: ["playwright", "cypress", "selenium"],
+  qa: ["testing", "automation"],
 };
 
 const WORD_RE = /[a-z0-9+#]+/g;

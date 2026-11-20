@@ -29,4 +29,9 @@ describe("categories", () => {
     const list = [base, { ...base, url: "https://example.com/b" }];
     expect(filterByCategory(list, "all")).toBe(list);
   });
+
+  it("groups test automation tools under QA & Testing", () => {
+    expect(matchesCategory({ ...base, topics: ["playwright"] }, "qa")).toBe(true);
+    expect(matchesCategory({ ...base, topics: ["java"] }, "qa")).toBe(false);
+  });
 });

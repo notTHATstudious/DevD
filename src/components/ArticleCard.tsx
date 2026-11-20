@@ -150,9 +150,9 @@ const ArticleCard = forwardRef<HTMLLIElement, Props>(function ArticleCard(
             )}
             <div className="mt-2 flex items-center text-[13px] text-muted-foreground">
               <span>
-                {read ? "Read · " : ""}
-                {readTime} min read
-                {savedAt !== undefined ? ` · saved ${formatRelativeTime(savedAt)}` : ""}
+                {[read ? "Read" : "", savedAt !== undefined ? `Saved ${formatRelativeTime(savedAt)}` : ""]
+                  .filter(Boolean)
+                  .join(" · ")}
               </span>
               <button
                 type="button"

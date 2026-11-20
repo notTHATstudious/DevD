@@ -156,16 +156,15 @@
   }
 }
 
-/* Installed PWA only — applied via applyPwaStandaloneMode() in main.tsx */
-html.pwa-standalone,
+/* Installed PWA only — applied via applyPwaStandaloneMode() in main.tsx.
+   Don't put overflow on html/body or touch-action here: on some Android
+   browsers that makes <body> the scroller instead of the window, and the
+   virtualized feed (which follows window scrolling) stops rendering. */
 html.pwa-standalone body {
-  overflow-x: hidden;
-  touch-action: pan-y;
-  overscroll-behavior: none;
-  max-width: 100%;
+  overscroll-behavior-y: none; /* no pull-to-refresh bounce */
 }
 
 html.pwa-standalone #root {
-  overflow-x: hidden;
+  overflow-x: clip; /* hide sideways overflow without creating a scroll container */
   max-width: 100%;
 }

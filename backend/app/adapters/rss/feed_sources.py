@@ -179,6 +179,16 @@ FEED_SOURCES = [
     {"name": "Dev.to", "url": "https://dev.to/feed/tag/go", "is_community": True, "topics": ["golang"]},
     {"name": "Reddit", "url": "https://www.reddit.com/r/golang/.rss", "is_community": True, "topics": ["golang"]},
 
+    # ---------- Stacks: Rust (incl. Rust for AI/ML) ----------
+    {"name": "Rust Blog", "url": "https://blog.rust-lang.org/feed.xml", "is_official": True, "topics": ["rust"]},
+    {"name": "Inside Rust", "url": "https://blog.rust-lang.org/inside-rust/feed.xml", "is_official": True, "topics": ["rust"]},
+    {"name": "This Week in Rust", "url": "https://this-week-in-rust.org/rss.xml", "is_news": True, "topics": ["rust"]},
+    {"name": "Tokio Blog", "url": "https://tokio.rs/blog/feed.xml", "is_official": True, "topics": ["rust"]},
+    {"name": "Burn Releases", "url": "https://github.com/tracel-ai/burn/releases.atom", "is_official": True, "topics": ["rust", "ai_engineering"]},
+    {"name": "Candle Releases", "url": "https://github.com/huggingface/candle/releases.atom", "is_official": True, "topics": ["rust", "ai_engineering"]},
+    {"name": "Dev.to", "url": "https://dev.to/feed/tag/rust", "is_community": True, "topics": ["rust"]},
+    {"name": "Reddit", "url": "https://www.reddit.com/r/rust/.rss", "is_community": True, "topics": ["rust"]},
+
     # ---------- Stacks: C# / .NET ----------
     {"name": ".NET Blog", "url": "https://devblogs.microsoft.com/dotnet/feed/", "is_official": True, "topics": ["dotnet"]},
     {"name": "Andrew Lock", "url": "https://andrewlock.net/rss.xml", "is_tutorial": True, "topics": ["dotnet"]},

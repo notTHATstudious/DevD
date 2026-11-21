@@ -19,6 +19,7 @@ export const STACKS = {
   node: { side: "backend", label: "Node.js · NestJS", topics: ["nodejs", "nestjs"] },
   go: { side: "backend", label: "Go", topics: ["golang"] },
   dotnet: { side: "backend", label: "C# · .NET", topics: ["dotnet"] },
+  rust: { side: "backend", label: "Rust", topics: ["rust"] },
   react: { side: "frontend", label: "React · Next.js", topics: ["react", "nextjs"] },
   angular: { side: "frontend", label: "Angular", topics: ["angular"] },
   vue: { side: "frontend", label: "Vue · Nuxt", topics: ["vue"] },

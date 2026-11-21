@@ -40,7 +40,7 @@ Saved in the browser as `dailyd_profile`; changeable in Topics.
 
 | Track | Stacks |
 |---|---|
-| Backend | Java · Spring Boot, Python · FastAPI, Node.js · NestJS, Go, C# · .NET |
+| Backend | Java · Spring Boot, Python · FastAPI, Node.js · NestJS, Go, C# · .NET, Rust (incl. Rust for AI: Burn, Candle) |
 | Frontend | React · Next.js, Angular, Vue · Nuxt, Svelte, Web basics (HTML/CSS/TypeScript) |
 | Full-stack | Any mix of the above |
 

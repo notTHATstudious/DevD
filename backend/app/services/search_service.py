@@ -43,6 +43,7 @@ SYNONYMS: Dict[str, List[str]] = {
     "typescript": ["ts"],
     "py": ["python"],
     "golang": ["go"],
+    "rustlang": ["rust"],
     "postgres": ["postgresql"],
     "postgresql": ["postgres"],
     "mongo": ["mongodb"],

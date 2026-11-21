@@ -22,6 +22,7 @@ const SYNONYMS: Record<string, string[]> = {
   golang: ["go"],
   node: ["nodejs"],
   dotnet: ["net", "csharp"],
+  rustlang: ["rust"],
   e2e: ["playwright", "cypress", "selenium"],
   qa: ["testing", "automation"],
 };

@@ -23,7 +23,7 @@ describe("profile", () => {
   it("is unanswered until saved, and defaults to all backend stacks", () => {
     expect(hasAnsweredProfile()).toBe(false);
     expect(DEFAULT_PROFILE.track).toBe("backend");
-    expect(DEFAULT_PROFILE.stacks).toEqual(["java_spring", "python", "node", "go", "dotnet"]);
+    expect(DEFAULT_PROFILE.stacks).toEqual(["java_spring", "python", "node", "go", "dotnet", "rust"]);
     profileStore.set(DEFAULT_PROFILE);
     expect(hasAnsweredProfile()).toBe(true);
   });
@@ -66,6 +66,8 @@ describe("stack topic detection", () => {
   it("matches tech names but not everyday words", () => {
     expect(getMatchedTopics("Getting started with Go 1.24", "")).toContain("golang");
     expect(getMatchedTopics("Let us go home", "")).not.toContain("golang");
+    expect(getMatchedTopics("Building an LLM server in Rust with Candle", "")).toContain("rust");
+    expect(getMatchedTopics("Why trust matters", "")).not.toContain("rust");
     expect(getMatchedTopics("React Server Components", "")).toContain("react");
     expect(getMatchedTopics("How markets react", "")).not.toContain("react");
   });
